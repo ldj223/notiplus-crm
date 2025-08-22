@@ -1,0 +1,16 @@
+[Unit]
+Description=AdStat Django Application
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/ubuntu/notiplus-crm
+ExecStart=/home/ubuntu/notiplus-crm/start_server.sh
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target 

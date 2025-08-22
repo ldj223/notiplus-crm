@@ -1,0 +1,274 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load custom_filters %}
+{% block title %}퍼블리셔 매출 지표{% endblock %}
+{% block content %}
+<style>
+  .table {
+    font-size: 0.75rem;
+    min-width: 1000px;
+  }
+  .table td, .table th {
+    white-space: nowrap;
+    padding: 0.25rem;
+    vertical-align: middle;
+    text-align: center;
+    min-width: 120px;
+  }
+  @media (max-width: 768px) {
+    .table-responsive {
+      font-size: 0.7rem;
+    }
+    .table td, .table th {
+      min-width: 120px;
+    }
+  }
+  [data-bs-theme="dark"] .table {
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .table-bordered {
+    border-color: #495057;
+  }
+  [data-bs-theme="dark"] .table-light {
+    background-color: #343a40;
+  }
+  [data-bs-theme="dark"] .table-light th {
+    background-color: #343a40;
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .bg-light {
+    background-color: #343a40 !important;
+    color: #e9ecef !important;
+  }
+  [data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+  }
+  .table thead th {
+    vertical-align: middle !important;
+    font-weight: 600;
+  }
+  .section-card {
+    background-color: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  }
+  [data-bs-theme="dark"] .section-card {
+    background-color: #2c3034;
+    border-color: #495057;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  }
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #495057;
+    display: flex;
+    align-items: center;
+  }
+  [data-bs-theme="dark"] .section-title {
+    color: #e9ecef;
+  }
+  .total-row {
+    background-color: #f8f9fa;
+    font-weight: bold;
+  }
+  [data-bs-theme="dark"] .total-row {
+    background-color: #2c3034;
+  }
+  .form-section {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+  }
+  [data-bs-theme="dark"] .form-section {
+    background-color: #2c3034;
+    border-color: #495057;
+  }
+  .form-control-sm, .form-select-sm {
+    padding: 0.25rem 0.5rem;
+    min-height: auto;
+    font-size: 0.75rem;
+  }
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .highlight {
+    background-color: #ffe599;
+  }
+</style>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 fw-bold">퍼블리셔 매출 지표</h2>
+  </div>
+
+  <!-- ===== 섹션 1: 기간 조회 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-calendar-alt me-2"></i>기간 조회
+    </div>
+    
+    <div class="form-section">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="start_date" class="form-label">시작일</label>
+          <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" required>
+        </div>
+        <div class="col-md-4">
+          <label for="end_date" class="form-label">종료일</label>
+          <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" required>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            <i class="fas fa-search"></i> 조회
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== 섹션 2: 매출 지표 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-chart-line me-2"></i>매출 지표
+    </div>
+    
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <h6 class="mb-0">일별 매출 현황</h6>
+          <span class="text-muted small">단위: 원</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th>일자</th>
+                <th>총 매출 합계</th>
+                {% for pub in publisher_headers %}
+                  <th>{{ pub.label }}<br>{{ pub.key }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td class="fw-bold">{{ d|date:'Y-m-d' }}</td>
+                <td class="fw-bold text-primary">{{ revenue_summary_data|get_item:d|get_item:'total_revenue'|default:0|floatformat:0|intcomma }}</td>
+                {% for pub in publisher_headers %}
+                  <td>{{ revenue_summary_data|get_item:d|get_item:'publisher_revenues'|get_item:pub.key|default:0|floatformat:0|intcomma }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td class="text-primary">{{ revenue_summary_totals.total_revenue|floatformat:0|intcomma }}</td>
+                {% for pub in publisher_headers %}
+                  <td>{{ revenue_summary_totals.publisher_revenues|get_item:pub.key|default:0|floatformat:0|intcomma }}</td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 섹션 3: 퍼블리셔 세부 데이터 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-user-tie me-2"></i>퍼블리셔 세부 데이터
+    </div>
+    
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <h6 class="mb-0">퍼블리셔별 상세 현황</h6>
+          <span class="text-muted small">단위: 원</span>
+        </div>
+        {% for pub in publisher_headers %}
+        <div class="mb-4">
+          <h6 class="mb-2 text-primary">{{ pub.label }} ({{ pub.key }})</h6>
+          <div class="table-responsive">
+            <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+              <thead class="table-light">
+                <tr>
+                  <th>일자</th>
+                  <th>페이지뷰</th>
+                  <th>유효페이지뷰</th>
+                  <th>유효페이지뷰율(%)</th>
+                  <th>파워링크 클릭수</th>
+                  <th data-bs-toggle="tooltip" data-bs-placement="top" title="파워링크 수익 = (Adpost 매출 ÷ Adpost 클릭수) × 퍼블리셔 파워링크 클릭수 × 59.5% × (Adpost 클릭수 ÷ 전체 powerlinkCount)">파워링크 수익(A) <i class="fas fa-info-circle text-muted"></i></th>
+                  <th>에드센스 수익(B)</th>
+                  <th>평균 수익(A+B)</th>
+                  <th>ADX 수익(C)</th>
+                  <th>평균 수익(A+B+C)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% with pub_data=all_publishers_detail_data|get_item:pub.key %}
+                {% for d in date_list %}
+                <tr>
+                  <td class="fw-bold">{{ d|date:'Y-m-d' }}</td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'pageview'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'valid_pageview'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'valid_pageview_rate'|default:'-' }}</td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'powerlink_click'|default:'-' }}</td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'powerlink_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>
+                    {% with adsense_revenue=pub_data.detail_data|get_item:d|get_item:'adsense_revenue' adsense_details=pub_data.detail_data|get_item:d|get_item:'adsense_details' %}
+                      {% if adsense_revenue and adsense_revenue > 0 and adsense_details %}
+                        <span data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" 
+                              title="${{ adsense_details.total_usd|floatformat:2 }} × {{ adsense_details.exchange_rate|floatformat:2 }} = {{ adsense_details.total_krw|floatformat:2|intcomma }}원">
+                          {{ adsense_revenue|floatformat:0|intcomma }}
+                        </span>
+                      {% else %}
+                        {{ adsense_revenue|default:'-'|floatformat:0|intcomma }}
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'ab_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_data|get_item:d|get_item:'adx_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td class="fw-bold">{{ pub_data.detail_data|get_item:d|get_item:'avg_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="total-row">
+                  <td>합계</td>
+                  <td>{{ pub_data.detail_totals.pageview|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_totals.valid_pageview|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_totals.valid_pageview_rate|default:'-' }}</td>
+                  <td>{{ pub_data.detail_totals.powerlink_click|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_totals.powerlink_revenue|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_totals.adsense_revenue|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_totals.ab_revenue|floatformat:0|intcomma }}</td>
+                  <td>{{ pub_data.detail_totals.adx_revenue|floatformat:0|intcomma }}</td>
+                  <td class="fw-bold">{{ pub_data.detail_totals.avg_revenue|floatformat:0|intcomma }}</td>
+                </tr>
+                {% endwith %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endfor %}
+        <div class="text-muted small mt-2">* 주요 퍼블리셔들의 세부 데이터를 표시합니다.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Bootstrap 툴팁 초기화
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl, {
+      html: tooltipTriggerEl.getAttribute('data-bs-html') === 'true'
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,390 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load custom_filters %}
+{% block title %}현황 리포트{% endblock %}
+{% block content %}
+<style>
+  .table {
+    font-size: 0.75rem;
+    min-width: 400px;
+  }
+  .table td, .table th {
+    white-space: nowrap;
+  }
+  @media (max-width: 768px) {
+    .table-responsive {
+      font-size: 0.7rem;
+    }
+    .table thead th {
+      white-space: nowrap;
+    }
+    .table td, .table th {
+      min-width: 140px;
+    }
+  }
+  [data-bs-theme="dark"] .table {
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .table-bordered {
+    border-color: #495057;
+  }
+  [data-bs-theme="dark"] .table-light {
+    background-color: #343a40;
+  }
+  [data-bs-theme="dark"] .table-light th {
+    background-color: #343a40;
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .bg-light {
+    background-color: #343a40 !important;
+    color: #e9ecef !important;
+  }
+  [data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+  }
+  .table thead th {
+      vertical-align: middle !important;
+      padding: 0.5rem;
+      text-align: center;
+  }
+  .section-card {
+    background-color: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  }
+  [data-bs-theme="dark"] .section-card {
+    background-color: #343a40;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  }
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 0.5rem;
+  }
+  [data-bs-theme="dark"] .section-title {
+    color: #e9ecef;
+    border-bottom-color: #495057;
+  }
+  .total-row {
+    background-color: #f8f9fa;
+    font-weight: bold;
+  }
+  [data-bs-theme="dark"] .total-row {
+    background-color: #2c3034;
+  }
+  .highlight {
+    background-color: #e6e0f8;
+  }
+  [data-bs-theme="dark"] .highlight {
+    background-color: #4a4267;
+  }
+  .sub-header {
+      font-size: 0.75em;
+      font-weight: normal;
+      color: #6c757d;
+  }
+  [data-bs-theme="dark"] .sub-header {
+      color: #adb5bd;
+  }
+  .table th {
+      white-space: nowrap;
+      vertical-align: middle;
+      padding: 0.5rem 0.25rem;
+  }
+  .table td {
+      padding: 0.25rem;
+      vertical-align: middle;
+  }
+  .form-control-sm, .form-select-sm {
+      padding: 0.25rem 0.5rem;
+      min-height: auto;
+      font-size: 0.75rem;
+  }
+  .form-select-sm option {
+      white-space: normal;
+      word-wrap: break-word;
+  }
+  .table-responsive {
+      overflow-x: auto;
+      max-width: 100%;
+  }
+  .tooltip-inner {
+      max-width: 400px;
+      text-align: left;
+      font-size: 0.75rem;
+      line-height: 1.4;
+  }
+  .tooltip-inner strong {
+      color: #fff;
+  }
+  .tooltip-inner br {
+      margin-bottom: 2px;
+  }
+  .btn-sm {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+  }
+  .change-positive {
+      color: #198754 !important;
+      font-weight: 500;
+  }
+  .change-negative {
+      color: #dc3545 !important;
+      font-weight: 500;
+  }
+  .change-zero {
+      color: #6c757d !important;
+  }
+  [data-bs-theme="dark"] .change-positive {
+      color: #75b798 !important;
+  }
+  [data-bs-theme="dark"] .change-negative {
+      color: #ea868f !important;
+  }
+  [data-bs-theme="dark"] .change-zero {
+      color: #adb5bd !important;
+  }
+  .form-section {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+  }
+  [data-bs-theme="dark"] .form-section {
+    background-color: #2c3034;
+    border-color: #495057;
+  }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0 fw-bold">현황 리포트</h2>
+    </div>
+
+    <!-- ===== 섹션 1: 기간 조회 ===== -->
+    <div class="section-card">
+        <div class="section-title">
+            <i class="fas fa-calendar-alt me-2"></i>기간 조회
+        </div>
+        
+        <div class="form-section">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="start_date" class="form-label">시작일</label>
+                    <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" value="{{ start_date }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label for="end_date" class="form-label">종료일</label>
+                    <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" value="{{ end_date }}" required>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                        <i class="fas fa-search"></i> 조회
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===== 섹션 2: 손익현황 ===== -->
+    <div class="section-card">
+        <div class="section-title">
+            <i class="fas fa-chart-line me-2"></i>손익현황
+        </div>
+        
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-end mb-2">
+                    <h6 class="mb-0">일별 손익 현황</h6>
+                    <span class="text-muted small">단위: 원</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>일자</th>
+                                <th>총 손익</th>
+                                <th>퍼블리셔<br>손익</th>
+                                <th>파트너스<br>손익</th>
+                                <th>스탬플리<br>손익</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in profit_rows %}
+                            <tr>
+                                <td>{{ row.date|date:'y/m/d' }}</td>
+                                <td>{{ row.total|intcomma }}</td>
+                                <td>{{ row.publisher|intcomma }}</td>
+                                <td>{{ row.partners|intcomma }}</td>
+                                <td>{{ row.stamply|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="total-row">
+                                <td>합계</td>
+                                <td>{{ profit_total.total|intcomma }}</td>
+                                <td>{{ profit_total.publisher|intcomma }}</td>
+                                <td>{{ profit_total.partners|intcomma }}</td>
+                                <td>{{ profit_total.stamply|intcomma }}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>전월대비</td>
+                                <td>{{ profit_mom.total|intcomma }}</td>
+                                <td>{{ profit_mom.publisher|intcomma }}</td>
+                                <td>{{ profit_mom.partners|intcomma }}</td>
+                                <td>{{ profit_mom.stamply|intcomma }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 섹션 3: 매출/매입현황 ===== -->
+    <div class="section-card">
+        <div class="section-title">
+            <i class="fas fa-chart-line me-2"></i>매출/매입현황
+        </div>
+        
+        <div class="row g-3">
+            <!-- 매출현황 (왼쪽) -->
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-end mb-2">
+                    <h6 class="mb-0 text-success"><i class="fas fa-arrow-up me-2"></i>매출현황</h6>
+                    <span class="text-muted small">단위: 원</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>일자</th>
+                                <th>총 매출</th>
+                                <th>퍼블리셔<br>매출</th>
+                                <th>파트너스<br>매출</th>
+                                <th>스탬플리<br>매출</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in sales_rows %}
+                            <tr>
+                                <td>{{ row.date|date:'y/m/d' }}</td>
+                                <td>{{ row.total|intcomma }}</td>
+                                <td>{{ row.publisher|intcomma }}</td>
+                                <td>{{ row.partners|intcomma }}</td>
+                                <td>{{ row.stamply|intcomma }}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="total-row">
+                                <td>합계</td>
+                                <td>{{ sales_total.total|intcomma }}</td>
+                                <td>{{ sales_total.publisher|intcomma }}</td>
+                                <td>{{ sales_total.partners|intcomma }}</td>
+                                <td>{{ sales_total.stamply|intcomma }}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>전월대비</td>
+                                <td>{{ sales_mom.total|intcomma }}</td>
+                                <td>{{ sales_mom.publisher|intcomma }}</td>
+                                <td>{{ sales_mom.partners|intcomma }}</td>
+                                <td>{{ sales_mom.stamply|intcomma }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 매입현황 (오른쪽) -->
+            <div class="col-md-6">
+                <div class="d-flex justify-content-between align-items-end mb-2">
+                    <h6 class="mb-0 text-warning"><i class="fas fa-arrow-down me-2"></i>매입현황</h6>
+                    <span class="text-muted small">단위: 원</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>일자</th>
+                                <th>총 매입</th>
+                                <th>퍼블리셔<br>매입</th>
+                                <th>파트너스<br>매입</th>
+                                <th>스탬플리<br>매입</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for row in purchase_rows %}
+                            <tr>
+                                <td>{{ row.date|date:'y/m/d' }}</td>
+                                <td>{{ row.total|intcomma }}</td>
+                                <td>{{ row.publisher|intcomma }}</td>
+                                <td>{{ row.partners|intcomma }}</td>
+                                <td>{% if row.stamply_note %}<span class="text-primary">{{ row.stamply_note }}</span>{% else %}{{ row.stamply|intcomma }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                            <tr class="total-row">
+                                <td>합계</td>
+                                <td>{{ purchase_total.total|intcomma }}</td>
+                                <td>{{ purchase_total.publisher|intcomma }}</td>
+                                <td>{{ purchase_total.partners|intcomma }}</td>
+                                <td>{{ purchase_total.stamply|intcomma }}</td>
+                            </tr>
+                            <tr class="total-row">
+                                <td>전월대비</td>
+                                <td>{{ purchase_mom.total|intcomma }}</td>
+                                <td>{{ purchase_mom.publisher|intcomma }}</td>
+                                <td>{{ purchase_mom.partners|intcomma }}</td>
+                                <td>{{ purchase_mom.stamply|intcomma }}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('현황 리포트 페이지 로드 완료');
+    
+    // 날짜 입력 필드에 기본값 설정 (오늘 날짜)
+    const today = new Date();
+    const startDateInput = document.getElementById('start_date');
+    const endDateInput = document.getElementById('end_date');
+    
+    if (!startDateInput.value) {
+        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        startDateInput.value = firstDayOfMonth.toISOString().split('T')[0];
+    }
+    
+    if (!endDateInput.value) {
+        endDateInput.value = today.toISOString().split('T')[0];
+    }
+    
+    // 시작일이 종료일보다 늦을 경우 종료일을 시작일로 설정
+    startDateInput.addEventListener('change', function() {
+        if (this.value && endDateInput.value && this.value > endDateInput.value) {
+            endDateInput.value = this.value;
+        }
+    });
+    
+    // 종료일이 시작일보다 이를 경우 시작일을 종료일로 설정
+    endDateInput.addEventListener('change', function() {
+        if (this.value && startDateInput.value && this.value < startDateInput.value) {
+            startDateInput.value = this.value;
+        }
+    });
+});
+</script>
+
+{% endblock %}
+
+
+
+
+

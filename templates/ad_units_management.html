@@ -1,0 +1,864 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% block title %}광고 단위 매핑{% endblock %}
+{% block content %}
+<div class="container-fluid mt-4">
+  <h2 class="mb-4 fw-bold">광고 단위 매핑</h2>
+  
+  <!-- 플랫폼 선택 단계 -->
+  <div id="platform-selection">
+    <div class="alert alert-info mb-4">
+      매핑할 광고 플랫폼을 선택하세요.
+    </div>
+    
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="card platform-option" style="cursor: pointer;" data-platform="adsense">
+          <div class="card-body text-center p-4">
+            <i class="fab fa-google fa-2x text-primary mb-3"></i>
+            <h5 class="card-title">구글 애드센스</h5>
+            <p class="card-text small text-muted">애드센스 광고 단위 매핑</p>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card platform-option" style="cursor: pointer;" data-platform="admanager">
+          <div class="card-body text-center p-4">
+            <i class="fas fa-ad fa-2x text-primary mb-3"></i>
+            <h5 class="card-title">구글 애드매니저</h5>
+            <p class="card-text small text-muted">애드매니저 광고 단위 매핑</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 광고 단위 매핑 단계 -->
+  <div id="mapping-section" style="display: none;">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <button class="btn btn-outline-secondary btn-sm mb-2" id="back-to-platform">
+          <i class="fas fa-arrow-left"></i> 플랫폼 선택
+        </button>
+        <h2 class="fw-bold mb-0" id="platform-title">광고 단위 매핑</h2>
+      </div>
+    </div>
+    <div class="alert alert-info mb-4">
+      퍼블리셔를 선택하여 해당 퍼블리셔의 광고 단위를 매핑하세요.<br>
+      <span class="text-muted small">하나의 광고 단위는 하나의 퍼블리셔만 선택할 수 있습니다.</span>
+    </div>
+    
+    <div class="row">
+      <!-- 1단계: 퍼블리셔 리스트 -->
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header">
+            <h5 class="mb-0">퍼블리셔 목록</h5>
+          </div>
+          <div class="card-body">
+            <!-- 퍼블리셔 검색 -->
+            <div class="mb-3">
+              <div class="form-check form-switch mb-2">
+                <input class="form-check-input" type="checkbox" role="switch" id="show-important-only" checked>
+                <label class="form-check-label" for="show-important-only">주요 퍼블리셔만 보기</label>
+              </div>
+              <div class="input-group">
+                <select class="form-select publisher-search-field" style="max-width: 120px;">
+                  <option value="service">서비스명</option>
+                  <option value="company">업체명</option>
+                </select>
+                <input type="text" class="form-control publisher-search-input" 
+                       placeholder="검색어 입력 (쉼표로 구분)">
+              </div>
+            </div>
+            
+            <div class="publisher-list">
+              {% for group in purchase_groups %}
+              <button class="list-group-item list-group-item-action publisher-item" 
+                      data-group-id="{{ group.id }}" 
+                      data-group-name="{{ group.company_name }}"
+                      data-member-name="{{ group.member.uname }}"
+                      data-service-name="{{ group.service_name|default:'' }}"
+                      data-is-important="{{ group.is_important|yesno:'true,false' }}"
+                      data-selected-units="{{ group_mappings|get_item:group.id|join:',' }}">
+                <div class="d-flex justify-content-between align-items-center">
+                  <div>
+                    {% if group.service_name %}
+                      <strong>{{ group.service_name }}</strong>
+                      {% if group.service_name != group.company_name %}
+                        <br><small class="text-muted">{{ group.company_name }}</small>
+                      {% endif %}
+                    {% else %}
+                      <strong>{{ group.company_name }}</strong><br>
+                      <small class="text-muted">{{ group.member.uname }}</small>
+                    {% endif %}
+                  </div>
+                  <span class="badge bg-primary rounded-pill selected-count" 
+                        data-group-id="{{ group.id }}">
+                    {{ group_mappings|get_item:group.id|length }}
+                  </span>
+                </div>
+              </button>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 2단계: 광고 단위 관리 -->
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+              <span id="selected-publisher-name">퍼블리셔를 선택하세요</span>
+            </h5>
+            <button class="btn btn-primary btn-save-all" style="display: none;">저장</button>
+          </div>
+          <div class="card-body">
+            <!-- 광고 단위 검색 (퍼블리셔 선택 시에만 표시) -->
+            <div id="ad-units-search" style="display: none;" class="mb-3">
+              <div class="input-group">
+                <select class="form-select ad-unit-search-field" style="max-width: 120px;">
+                  <option value="name">광고단위명</option>
+                  <option value="id">광고단위ID</option>
+                </select>
+                <input type="text" class="form-control ad-unit-search-input" 
+                       placeholder="검색어 입력 (쉼표로 구분)">
+              </div>
+            </div>
+            
+            <div id="ad-units-container">
+              <div class="text-center text-muted py-5">
+                <i class="fas fa-arrow-left fa-2x mb-3"></i>
+                <p>왼쪽에서 퍼블리셔를 선택하여 광고 단위를 매핑하세요.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 광고 단위 데이터 (숨겨진 div에 저장) -->
+<div id="ad-units-data" style="display: none;">
+  {% for unit in available_ad_units %}
+  <div class="ad-unit-data" 
+       data-id="{{ unit.ad_unit_id }}" 
+       data-name="{{ unit.ad_unit_name|default:'' }}" 
+       data-alias="{{ unit.alias }}">
+  </div>
+  {% endfor %}
+</div>
+
+<!-- 광고 단위 템플릿 (JavaScript에서 사용) -->
+<template id="ad-units-template">
+  <div class="ad-units-section">
+    <div class="row">
+      <!-- 현재 선택된 광고 단위 -->
+      <div class="col-md-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="text-success mb-0">
+            <i class="fas fa-check-circle"></i> 현재 선택된 광고 단위
+          </h6>
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-success btn-select-all-selected">
+              전체선택
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-deselect-all-selected">
+              전체해제
+            </button>
+          </div>
+        </div>
+        <div class="selected-ad-units ad-units-scrollable">
+          <!-- 선택된 광고 단위들이 여기에 표시됨 -->
+        </div>
+      </div>
+      
+      <!-- 선택 가능한 광고 단위 -->
+      <div class="col-md-6">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h6 class="text-primary mb-0">
+            <i class="fas fa-plus-circle"></i> 선택 가능한 광고 단위
+          </h6>
+          <div class="btn-group btn-group-sm">
+            <button type="button" class="btn btn-outline-primary btn-select-all-available">
+              전체선택
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-deselect-all-available">
+              전체해제
+            </button>
+          </div>
+        </div>
+        <div class="available-ad-units ad-units-scrollable">
+          <!-- 선택 가능한 광고 단위들이 여기에 표시됨 -->
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  let currentPlatform = null;
+  let currentGroupId = null;
+  let allAdUnits = [];
+  let groupMappings = {};
+  let allPublishers = [];
+  
+  // 플랫폼 선택 이벤트
+  document.querySelectorAll('.platform-option').forEach(card => {
+    card.addEventListener('click', function() {
+      const platform = this.getAttribute('data-platform');
+      currentPlatform = platform;
+      
+      // 플랫폼별 제목 설정
+      const platformNames = {
+        'adsense': '구글 애드센스',
+        'admanager': '구글 애드매니저'
+      };
+      
+      document.getElementById('platform-title').textContent = `${platformNames[platform]} 광고 단위 매핑`;
+      
+      // 섹션 전환
+      document.getElementById('platform-selection').style.display = 'none';
+      document.getElementById('mapping-section').style.display = 'block';
+      
+      // 광고 단위 데이터 로드
+      loadAdUnitsData(platform);
+    });
+  });
+  
+  // 플랫폼 선택으로 돌아가기
+  document.getElementById('back-to-platform').addEventListener('click', function() {
+    document.getElementById('platform-selection').style.display = 'block';
+    document.getElementById('mapping-section').style.display = 'none';
+    currentPlatform = null;
+    currentGroupId = null;
+    
+    // 상태 초기화
+    document.getElementById('ad-units-container').innerHTML = `
+      <div class="text-center text-muted py-5">
+        <i class="fas fa-arrow-left fa-2x mb-3"></i>
+        <p>왼쪽에서 퍼블리셔를 선택하여 광고 단위를 매핑하세요.</p>
+      </div>
+    `;
+    document.getElementById('ad-units-search').style.display = 'none';
+    document.querySelector('.btn-save-all').style.display = 'none';
+  });
+  
+  // 광고 단위 데이터 로드
+  function loadAdUnitsData(platform) {
+    fetch(`/api/ad-units/${platform}/data/`)
+      .then(response => response.json())
+      .then(data => {
+        console.log('API 응답:', data); // 디버깅용
+        
+        // API에서 받은 데이터 처리
+        if (data.ad_units && Array.isArray(data.ad_units)) {
+          allAdUnits = data.ad_units.map(unit => ({
+            id: unit.ad_unit_id,
+            name: unit.ad_unit_name,
+            alias: unit.alias
+          }));
+        } else {
+          // 기본 데이터 사용
+          allAdUnits = [];
+          document.querySelectorAll('.ad-unit-data').forEach(element => {
+            allAdUnits.push({
+              id: element.getAttribute('data-id'),
+              name: element.getAttribute('data-name'),
+              alias: element.getAttribute('data-alias')
+            });
+          });
+        }
+        
+        // 그룹 매핑 데이터 처리
+        if (data.group_mappings) {
+          groupMappings = data.group_mappings;
+        } else {
+          groupMappings = {};
+        }
+        
+        console.log('처리된 광고 단위:', allAdUnits); // 디버깅용
+        console.log('그룹 매핑:', groupMappings); // 디버깅용
+        
+        // 퍼블리셔 데이터 수집
+        collectPublisherData();
+        
+        // 검색 기능 초기화
+        initializeSearch();
+      })
+      .catch(error => {
+        console.error('광고 단위 데이터 로드 실패:', error);
+        // 기본 데이터 사용 (기존 방식)
+        allAdUnits = [];
+        document.querySelectorAll('.ad-unit-data').forEach(element => {
+          allAdUnits.push({
+            id: element.getAttribute('data-id'),
+            name: element.getAttribute('data-name'),
+            alias: element.getAttribute('data-alias')
+          });
+        });
+        
+        groupMappings = {};
+        collectPublisherData();
+        initializeSearch();
+      });
+  }
+  
+  // 퍼블리셔 데이터 수집
+  function collectPublisherData() {
+    allPublishers = [];
+    document.querySelectorAll('.publisher-item').forEach(item => {
+      const groupId = item.getAttribute('data-group-id');
+      const groupName = item.getAttribute('data-group-name');
+      const memberName = item.getAttribute('data-member-name');
+      const serviceName = item.getAttribute('data-service-name');
+      const isImportant = item.getAttribute('data-is-important') === 'true';
+      
+      const selectedUnits = groupMappings[groupId] || [];
+      item.querySelector('.selected-count').textContent = selectedUnits.length;
+      item.setAttribute('data-selected-units', selectedUnits.join(','));
+      
+      allPublishers.push({
+        element: item,
+        groupId: groupId,
+        groupName: groupName,
+        memberName: memberName,
+        serviceName: serviceName,
+        isImportant: isImportant,
+        selectedUnits: selectedUnits
+      });
+    });
+  }
+  
+  // 검색 기능 초기화
+  function initializeSearch() {
+    // 퍼블리셔 검색 기능
+    const publisherSearchInput = document.querySelector('.publisher-search-input');
+    const publisherSearchField = document.querySelector('.publisher-search-field');
+    const showImportantOnlyCheckbox = document.getElementById('show-important-only');
+    
+    function filterPublishers() {
+      const searchText = publisherSearchInput.value.trim();
+      const searchField = publisherSearchField.value;
+      const showImportant = showImportantOnlyCheckbox.checked;
+      
+      const keywords = searchText.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      
+      allPublishers.forEach(pub => {
+        let isVisible = true;
+        
+        // 1. 주요 퍼블리셔 필터
+        if (showImportant && !pub.isImportant) {
+          isVisible = false;
+        }
+        
+        // 2. 검색어 필터
+        if (isVisible && keywords.length > 0) {
+          let searchTarget = '';
+          if (searchField === 'company') {
+            searchTarget = `${pub.groupName} ${pub.memberName}`.toLowerCase();
+          } else if (searchField === 'service') {
+            searchTarget = pub.serviceName.toLowerCase();
+          }
+          
+          // 모든 키워드가 포함되어야 함
+          const matches = keywords.every(keyword => searchTarget.includes(keyword));
+          if (!matches) {
+            isVisible = false;
+          }
+        }
+        
+        pub.element.style.display = isVisible ? 'block' : 'none';
+      });
+    }
+    
+    publisherSearchInput.addEventListener('input', filterPublishers);
+    publisherSearchField.addEventListener('change', filterPublishers);
+    showImportantOnlyCheckbox.addEventListener('change', filterPublishers);
+    
+    // 초기 필터링 실행
+    filterPublishers();
+    
+    // 퍼블리셔 선택 이벤트
+    document.querySelectorAll('.publisher-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const groupId = this.getAttribute('data-group-id');
+        const groupName = this.getAttribute('data-group-name');
+        const memberName = this.getAttribute('data-member-name');
+        
+        // 활성 상태 변경
+        document.querySelectorAll('.publisher-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+        
+        // 헤더 업데이트
+        document.getElementById('selected-publisher-name').textContent = `${groupName} (${memberName})`;
+        
+        // 저장 버튼 표시
+        document.querySelector('.btn-save-all').style.display = 'block';
+        
+        // 광고 단위 검색 필드 표시
+        document.getElementById('ad-units-search').style.display = 'block';
+        
+        // 광고 단위 목록 표시
+        showAdUnits(groupId, groupName);
+      });
+    });
+    
+    // 광고 단위 검색 기능
+    const adUnitSearchInput = document.querySelector('.ad-unit-search-input');
+    const adUnitSearchField = document.querySelector('.ad-unit-search-field');
+    
+    function filterAdUnits() {
+      const searchText = adUnitSearchInput.value.trim();
+      const searchField = adUnitSearchField.value;
+      
+      if (!searchText) {
+        // 검색어가 없으면 모든 광고 단위 표시
+        document.querySelectorAll('.ad-unit-checkbox').forEach(checkbox => {
+          const item = checkbox.closest('.ad-unit-item');
+          item.style.display = 'block';
+        });
+        return;
+      }
+      
+      const keywords = searchText.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      
+      document.querySelectorAll('.ad-unit-checkbox').forEach(checkbox => {
+        const item = checkbox.closest('.ad-unit-item');
+        const adUnitId = checkbox.value;
+        const adUnit = allAdUnits.find(unit => unit.id === adUnitId);
+        
+        if (!adUnit) return;
+        
+        let searchTarget = '';
+        
+        if (searchField === 'id') {
+          searchTarget = `${adUnit.alias} ${adUnit.id}`.toLowerCase();
+        } else if (searchField === 'name') {
+          searchTarget = adUnit.name.toLowerCase();
+        }
+        
+        // 모든 키워드가 포함되어야 함
+        const matches = keywords.every(keyword => searchTarget.includes(keyword));
+        item.style.display = matches ? 'block' : 'none';
+      });
+    }
+    
+    adUnitSearchInput.addEventListener('input', filterAdUnits);
+    adUnitSearchField.addEventListener('change', filterAdUnits);
+  }
+  
+  // 광고 단위 목록 표시
+  function showAdUnits(groupId, groupName) {
+    currentGroupId = groupId;
+    
+    // 검색 필드 초기화
+    document.querySelector('.ad-unit-search-input').value = '';
+    
+    // 이미 선택된 모든 광고 단위 수집
+    const allSelected = new Set();
+    Object.values(groupMappings).forEach(selected => {
+      selected.forEach(adUnitId => allSelected.add(adUnitId));
+    });
+    
+    // 현재 그룹이 선택한 광고 단위
+    const groupSelected = new Set(groupMappings[groupId] || []);
+    
+    // 선택된 광고 단위와 선택 가능한 광고 단위 분리
+    const selectedUnits = allAdUnits.filter(unit => groupSelected.has(unit.id));
+    const availableUnits = allAdUnits.filter(unit => 
+      !groupSelected.has(unit.id) && !allSelected.has(unit.id)
+    );
+    
+    // 템플릿 복사
+    const template = document.getElementById('ad-units-template');
+    const clone = template.content.cloneNode(true);
+    
+    // 선택된 광고 단위 표시
+    const selectedContainer = clone.querySelector('.selected-ad-units');
+    selectedUnits.forEach(unit => {
+      const unitDiv = createAdUnitElement(unit, true, true);
+      selectedContainer.appendChild(unitDiv);
+    });
+    
+    if (selectedUnits.length === 0) {
+      selectedContainer.innerHTML = '<p class="text-muted">선택된 광고 단위가 없습니다.</p>';
+    }
+    
+    // 선택 가능한 광고 단위 표시
+    const availableContainer = clone.querySelector('.available-ad-units');
+    availableUnits.forEach(unit => {
+      const unitDiv = createAdUnitElement(unit, false, true);
+      availableContainer.appendChild(unitDiv);
+    });
+    
+    if (availableUnits.length === 0) {
+      availableContainer.innerHTML = '<p class="text-muted">선택 가능한 광고 단위가 없습니다.</p>';
+    }
+    
+    // 컨테이너 업데이트
+    const container = document.getElementById('ad-units-container');
+    container.innerHTML = '';
+    container.appendChild(clone);
+    
+    // 이벤트 리스너 추가
+    addAdUnitEventListeners();
+  }
+  
+  // 광고 단위 요소 생성
+  function createAdUnitElement(unit, isSelected, isCheckbox) {
+    const div = document.createElement('div');
+    div.className = 'ad-unit-item border rounded p-3 mb-2';
+    div.classList.add(isSelected ? 'ad-unit-selected' : 'ad-unit-available');
+    
+    const displayName = unit.name ? `${unit.name} [${unit.alias}]` : `[${unit.alias}] ${unit.id}`;
+    const fullName = unit.name ? `${unit.name} [${unit.alias}] ${unit.id}` : `[${unit.alias}] ${unit.id}`;
+    
+    if (isCheckbox) {
+      div.innerHTML = `
+        <div class="form-check">
+          <input class="form-check-input ad-unit-checkbox" type="checkbox" 
+                 value="${unit.id}" id="unit_${unit.id}" 
+                 ${isSelected ? 'checked' : ''}>
+          <label class="form-check-label" for="unit_${unit.id}">
+            <strong>${displayName}</strong>
+            ${unit.name ? `<br><small class="text-muted">ID: ${unit.id}</small>` : ''}
+          </label>
+        </div>
+      `;
+    } else {
+      div.innerHTML = `
+        <div>
+          <strong>${displayName}</strong>
+          ${unit.name ? `<br><small class="text-muted">ID: ${unit.id}</small>` : ''}
+        </div>
+      `;
+    }
+    
+    return div;
+  }
+  
+  // 광고 단위 이벤트 리스너 추가
+  function addAdUnitEventListeners() {
+    document.querySelectorAll('.ad-unit-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', function() {
+        const adUnitId = this.value;
+        const isChecked = this.checked;
+        
+        if (isChecked) {
+          // 다른 그룹에서 선택된 광고 단위인지 확인
+          const isSelectedByOthers = Object.entries(groupMappings).some(([groupId, selected]) => 
+            groupId !== currentGroupId && selected.includes(adUnitId)
+          );
+          
+          if (isSelectedByOthers) {
+            alert('이미 다른 퍼블리셔가 선택한 광고 단위입니다.');
+            this.checked = false;
+            return;
+          }
+          
+          // 현재 그룹에 추가
+          if (!groupMappings[currentGroupId]) {
+            groupMappings[currentGroupId] = [];
+          }
+          groupMappings[currentGroupId].push(adUnitId);
+        } else {
+          // 현재 그룹에서 제거
+          if (groupMappings[currentGroupId]) {
+            groupMappings[currentGroupId] = groupMappings[currentGroupId].filter(id => id !== adUnitId);
+          }
+        }
+        
+        // 선택 개수 업데이트
+        updateSelectedCount(currentGroupId);
+      });
+    });
+    
+    // 전체선택/전체해제 버튼 이벤트 리스너 추가
+    addBulkSelectionEventListeners();
+  }
+  
+  // 전체선택/전체해제 버튼 이벤트 리스너
+  function addBulkSelectionEventListeners() {
+    // 현재 선택된 광고 단위 전체선택
+    document.querySelector('.btn-select-all-selected').addEventListener('click', function() {
+      const visibleItems = document.querySelectorAll('.selected-ad-units .ad-unit-item');
+      visibleItems.forEach(item => {
+        if (item.style.display !== 'none') {
+          const checkbox = item.querySelector('.ad-unit-checkbox');
+          if (checkbox && !checkbox.checked) {
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    });
+    
+    // 현재 선택된 광고 단위 전체해제
+    document.querySelector('.btn-deselect-all-selected').addEventListener('click', function() {
+      const visibleItems = document.querySelectorAll('.selected-ad-units .ad-unit-item');
+      visibleItems.forEach(item => {
+        if (item.style.display !== 'none') {
+          const checkbox = item.querySelector('.ad-unit-checkbox');
+          if (checkbox && checkbox.checked) {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    });
+    
+    // 선택 가능한 광고 단위 전체선택
+    document.querySelector('.btn-select-all-available').addEventListener('click', function() {
+      const visibleItems = document.querySelectorAll('.available-ad-units .ad-unit-item');
+      visibleItems.forEach(item => {
+        if (item.style.display !== 'none') {
+          const checkbox = item.querySelector('.ad-unit-checkbox');
+          if (checkbox && !checkbox.checked) {
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    });
+    
+    // 선택 가능한 광고 단위 전체해제
+    document.querySelector('.btn-deselect-all-available').addEventListener('click', function() {
+      const visibleItems = document.querySelectorAll('.available-ad-units .ad-unit-item');
+      visibleItems.forEach(item => {
+        if (item.style.display !== 'none') {
+          const checkbox = item.querySelector('.ad-unit-checkbox');
+          if (checkbox && checkbox.checked) {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+          }
+        }
+      });
+    });
+  }
+  
+  // 선택 개수 업데이트
+  function updateSelectedCount(groupId) {
+    const count = groupMappings[groupId] ? groupMappings[groupId].length : 0;
+    const badge = document.querySelector(`.selected-count[data-group-id="${groupId}"]`);
+    if (badge) {
+      badge.textContent = count;
+    }
+  }
+  
+  // 저장 버튼 이벤트
+  document.querySelector('.btn-save-all').addEventListener('click', function() {
+    if (!currentGroupId || !currentPlatform) return;
+    
+    const selected = groupMappings[currentGroupId] || [];
+    
+    fetch(`/api/ad-units/${currentPlatform}/`, {
+      method: "POST",
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': '{{ csrf_token }}'
+      },
+      body: JSON.stringify({ group_id: currentGroupId, ad_unit_ids: selected })
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        this.classList.remove('btn-primary');
+        this.classList.add('btn-success');
+        this.textContent = '저장됨';
+        setTimeout(() => {
+          this.classList.remove('btn-success');
+          this.classList.add('btn-primary');
+          this.textContent = '저장';
+        }, 1200);
+      } else {
+        alert(data.error || '저장 실패');
+      }
+    })
+    .catch(() => alert('저장 중 오류 발생'));
+  });
+
+  // 퍼블리셔 카드 생성
+  function createPublisherCard(pub) {
+    const div = document.createElement('div');
+    div.className = 'col-md-6 col-lg-4 mb-3';
+    
+    let displayName, subText;
+    if (pub.serviceName && pub.serviceName !== pub.memberName) {
+      displayName = pub.serviceName;
+      subText = `${pub.groupName} (${pub.memberName})`;
+    } else {
+      displayName = pub.groupName;
+      subText = pub.memberName;
+    }
+    
+    div.innerHTML = `
+      <div class="card publisher-card" style="cursor: pointer;" 
+           data-group-id="${pub.groupId}" 
+           data-group-name="${pub.groupName}"
+           data-member-name="${pub.memberName}">
+        <div class="card-body">
+          <h6 class="card-title">${displayName}</h6>
+          <p class="card-text small text-muted mb-2">${subText}</p>
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">선택된 광고 단위</small>
+            <span class="badge bg-primary rounded-pill selected-count" 
+                  data-group-id="${pub.groupId}">
+              ${pub.selectedUnits.length}
+            </span>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // 클릭 이벤트 추가
+    div.querySelector('.publisher-card').addEventListener('click', function() {
+      const groupId = this.getAttribute('data-group-id');
+      const groupName = this.getAttribute('data-group-name');
+      const memberName = this.getAttribute('data-member-name');
+      
+      selectPublisher(groupId, groupName, memberName);
+    });
+    
+    return div;
+  }
+});
+</script>
+
+<style>
+.platform-option {
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.platform-option:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  border-color: var(--bs-primary);
+}
+
+.publisher-item {
+  border: none;
+  border-radius: 0;
+  transition: background-color 0.2s;
+}
+
+.publisher-item:hover {
+  background-color: var(--bs-light);
+}
+
+.publisher-item.active {
+  background-color: var(--bs-primary-bg-subtle);
+  border-left: 4px solid var(--bs-primary);
+}
+
+.ad-unit-item {
+  transition: all 0.2s;
+}
+
+.ad-unit-item:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.ad-unit-selected {
+  background-color: var(--bs-success-bg-subtle);
+  border-color: var(--bs-success-border-subtle);
+}
+
+.ad-unit-available {
+  background-color: var(--bs-light);
+  border-color: var(--bs-border-color);
+}
+
+.ad-units-scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.ad-units-scrollable::-webkit-scrollbar {
+  width: 8px;
+}
+
+.ad-units-scrollable::-webkit-scrollbar-track {
+  background: var(--bs-light);
+  border-radius: 4px;
+}
+
+.ad-units-scrollable::-webkit-scrollbar-thumb {
+  background: var(--bs-secondary);
+  border-radius: 4px;
+}
+
+.ad-units-scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--bs-secondary-emphasis);
+}
+
+.selected-count {
+  font-size: 0.8rem;
+}
+
+/* 검색 필드 스타일 */
+.publisher-search-field,
+.ad-unit-search-field {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.publisher-search-input,
+.ad-unit-search-input {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+/* 퍼블리셔 리스트 간격 */
+.publisher-list .publisher-item {
+  margin-bottom: 8px;
+  border-radius: 6px !important;
+}
+
+.publisher-list .publisher-item:last-child {
+  margin-bottom: 0;
+}
+
+/* 다크모드 대응 */
+[data-bs-theme="dark"] .platform-option:hover {
+  box-shadow: 0 4px 12px rgba(255,255,255,0.1);
+}
+
+[data-bs-theme="dark"] .publisher-item:hover {
+  background-color: var(--bs-dark);
+}
+
+[data-bs-theme="dark"] .publisher-item.active {
+  background-color: var(--bs-primary-bg-subtle);
+  border-left-color: var(--bs-primary);
+}
+
+[data-bs-theme="dark"] .ad-unit-selected {
+  background-color: var(--bs-success-bg-subtle);
+  border-color: var(--bs-success-border-subtle);
+}
+
+[data-bs-theme="dark"] .ad-unit-available {
+  background-color: var(--bs-dark);
+  border-color: var(--bs-border-color);
+}
+
+[data-bs-theme="dark"] .ad-units-scrollable::-webkit-scrollbar-track {
+  background: var(--bs-dark);
+}
+
+[data-bs-theme="dark"] .ad-units-scrollable::-webkit-scrollbar-thumb {
+  background: var(--bs-secondary);
+}
+
+[data-bs-theme="dark"] .ad-units-scrollable::-webkit-scrollbar-thumb:hover {
+  background: var(--bs-secondary-emphasis);
+}
+</style>
+{% endblock %} 

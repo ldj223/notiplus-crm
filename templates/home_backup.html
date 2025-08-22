@@ -1,0 +1,234 @@
+<h2 class="mb-4 fw-bold">현황</h2>
+  
+  
+  <div class="row g-3">
+    <!-- 당월 매출정산 표 -->
+    <div class="col-12 col-lg-6">
+      <div class="d-flex justify-content-between align-items-end mb-1">
+        <div class="table-section-title">{{ selected_month }} 매출정산</div>
+        <span class="text-muted small">단위: 원</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle text-center">
+          <thead class="table-light">
+            <tr>
+              <th>구분</th>
+              <th>매출정산업체수</th>
+              <th>매출추정액</th>
+              <th>주요내역</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sales_summary_rows %}
+            <tr>
+              <td>{{ row.type }}</td>
+              <td>{{ row.company_count }}</td>
+              <td>
+                <input type="number" 
+                       class="form-control form-control-sm adjustment-input" 
+                       data-year-month="{{ selected_month }}"
+                       data-adjustment-type="sales"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.estimate|floatformat:0 }}" 
+                       style="width: 80px; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+              <td>
+                <input type="text" 
+                       class="form-control form-control-sm adjustment-note-input" 
+                       data-year-month="{{ selected_month }}"
+                       data-adjustment-type="sales"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.note|default:'' }}" 
+                       placeholder="내역 입력"
+                       style="width: 120px; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+              <td>합계</td>
+              <td>{{ sales_summary_total.company_count }}</td>
+              <td id="current-sales-total">{{ sales_summary_total.estimate|intcomma }}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- 당월 매입정산 표 -->
+    <div class="col-12 col-lg-6">
+      <div class="d-flex justify-content-between align-items-end mb-1">
+        <div class="table-section-title">{{ selected_month }} 매입정산</div>
+        <span class="text-muted small">단위: 원</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle text-center">
+          <thead class="table-light">
+            <tr>
+              <th>구분</th>
+              <th>매입정산업체수</th>
+              <th>세금계산서수취기한</th>
+              <th>매입정산금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in purchase_summary_rows %}
+            <tr>
+              <td>{{ row.type }}</td>
+              <td>{{ row.company_count }}</td>
+              <td>
+                <input type="date" 
+                       class="form-control form-control-sm tax-deadline-input" 
+                       data-year-month="{{ selected_month }}"
+                       data-adjustment-type="purchase"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.tax_deadline }}"
+                       style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+              <td>
+                <input type="number" 
+                       class="form-control form-control-sm adjustment-input" 
+                       data-year-month="{{ selected_month }}"
+                       data-adjustment-type="purchase"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.amount|floatformat:0 }}" 
+                       style="width: 80px; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+              <td>합계</td>
+              <td>{{ purchase_summary_total.company_count }}</td>
+              <td></td>
+              <td id="current-purchase-total">{{ purchase_summary_total.amount|intcomma }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  
+  <div class="row g-3">
+    <!-- 전월 매출정산 표 (조정금액 포함) -->
+    <div class="col-12 col-lg-6">
+      <div class="d-flex justify-content-between align-items-end mb-1">
+        <div class="table-section-title">{{ prev_month }} 매출정산</div>
+        <span class="text-muted small">단위: 원</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle text-center">
+          <thead class="table-light">
+            <tr>
+              <th>구분</th>
+              <th>조정 전 매출추정액</th>
+              <th>조정 후 매출확정액</th>
+              <th>조정금액<br>(엑셀 업로드방식)</th>
+              <th>조정내역</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in sales_summary_prev_rows %}
+            <tr>
+              <td>{{ row.type }}</td>
+              <td>
+                <input type="number" 
+                       class="form-control form-control-sm adjustment-input" 
+                       data-year-month="{{ prev_month }}"
+                       data-adjustment-type="sales"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.estimate|floatformat:0 }}" 
+                       style="width: 80px; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+              <td>
+                <input type="number" 
+                       class="form-control form-control-sm adjustment-input" 
+                       data-year-month="{{ prev_month }}"
+                       data-adjustment-type="sales"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.confirmed|floatformat:0 }}" 
+                       style="width: 80px; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+              <td>{{ row.adjust|intcomma }}</td>
+              <td>
+                <input type="text" 
+                       class="form-control form-control-sm adjustment-note-input" 
+                       data-year-month="{{ prev_month }}"
+                       data-adjustment-type="sales"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.note|default:'' }}" 
+                       placeholder="내역 입력"
+                       style="width: 120px; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+              <td>합계</td>
+              <td id="prev-sales-estimate-total">{{ sales_summary_prev_total.estimate|intcomma }}</td>
+              <td id="prev-sales-confirmed-total">{{ sales_summary_prev_total.confirmed|intcomma }}</td>
+              <td>{{ sales_summary_prev_total.adjust|intcomma }}</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- 전월 매입정산 표 -->
+    <div class="col-12 col-lg-6">
+      <div class="d-flex justify-content-between align-items-end mb-1">
+        <div class="table-section-title">{{ prev_month }} 매입정산</div>
+        <span class="text-muted small">단위: 원</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-bordered align-middle text-center">
+          <thead class="table-light">
+            <tr>
+              <th>구분</th>
+              <th>매입정산업체수</th>
+              <th>세금계산서수취기한</th>
+              <th>매입정산금액</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in purchase_summary_prev_rows %}
+            <tr>
+              <td>{{ row.type }}</td>
+              <td>{{ row.company_count }}</td>
+              <td>
+                <input type="date" 
+                       class="form-control form-control-sm tax-deadline-input" 
+                       data-year-month="{{ prev_month }}"
+                       data-adjustment-type="purchase"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.tax_deadline }}"
+                       style="padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+              <td>
+                <input type="number" 
+                       class="form-control form-control-sm adjustment-input" 
+                       data-year-month="{{ prev_month }}"
+                       data-adjustment-type="purchase"
+                       data-sales-type="{{ row.type }}"
+                       value="{{ row.amount|floatformat:0 }}" 
+                       style="width: 80px; text-align: right; padding: 0.25rem 0.5rem; font-size: 0.75rem;"
+                       onchange="saveMonthlyAdjustment(this)"/>
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+              <td>합계</td>
+              <td>{{ purchase_summary_prev_total.company_count }}</td>
+              <td></td>
+              <td id="prev-purchase-total">{{ purchase_summary_prev_total.amount|intcomma }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>

@@ -1,0 +1,130 @@
+from django.urls import path
+from . import views, api
+from .views import (
+    dashboard_view,
+    main_view, 
+    signup_view, 
+    logout_view,
+    login_view,
+    credential_view,
+    credential_list_view,
+    delete_credential,
+    report_view,
+    publisher_report_view,
+    purchase_report_view,
+    publisher_detail_data_api,
+    download_publisher_detail_excel,
+    sales_report_view,
+    sales_excel_download_view,
+    sales_api_view,
+    settlement_department_list,
+    settlement_department_create,
+    settlement_department_edit,
+    settlement_department_delete,
+    purchase_group_batch_update,
+    purchase_group_detail_api,
+    ad_units_management_view,
+    adsense_ad_units_api,
+    admanager_ad_units_api,
+    ad_units_data_api,
+    exchange_rate_list,
+    exchange_rate_create,
+    exchange_rate_edit,
+    exchange_rate_delete,
+    check_main_account,
+    check_username,
+    check_email,
+    get_auto_fetch_setting,
+    save_auto_fetch_setting,
+    data_collection_view,
+    save_other_revenue,
+    save_monthly_adjustment,
+    member_search_api,
+)
+from .api import (
+    api_stats_view,
+    api_ad_units_view,
+    api_stats_excel_view,
+    get_admanager_reports_api,
+    save_admanager_report_api,
+    get_admanager_current_report_api,
+)
+
+urlpatterns = [
+    # path('', dashboard_view, name='dashboard'),
+    path('', main_view, name='main'),
+    path('dashboard/', dashboard_view, name='dashboard'),
+    path('login/', login_view, name='login'),
+    path('logout/', logout_view, name='logout'),
+    path('signup/', signup_view, name='signup'),
+    path('api/check-main-account/', check_main_account, name='check_main_account'),
+    path('api/check-username/', check_username, name='check_username'),
+    path('api/check-email/', check_email, name='check_email'),
+    path('credentials/', credential_list_view, name='credential_list'),
+    path('credentials/add/', credential_view, name='add_credential'),
+    path('credentials/<int:pk>/', credential_view, name='edit_credential'),
+    path('credentials/<int:pk>/delete/', delete_credential, name='delete_credential'),
+    path('api/stats/', api_stats_view, name='api_stats'),
+    path('api/ad-units/', api_ad_units_view, name='api_ad_units'),
+    path('api/auto-fetch-days/', get_auto_fetch_setting, name='get_auto_fetch_setting'),
+    path('api/save-auto-fetch-setting/', save_auto_fetch_setting, name='save_auto_fetch_setting'),
+    path('api/fetch/adsense/', api.fetch_adsense_api, name='fetch_adsense'),
+    path('api/fetch/admanager/', api.fetch_admanager_api, name='fetch_admanager'),
+    path('api/fetch/coupang/', api.fetch_coupang_api, name='fetch_coupang'),
+    path('api/fetch/cozymamang/', api.fetch_cozymamang_api, name='fetch_cozymamang'),
+    path('api/fetch/mediamixer/', api.fetch_mediamixer_api, name='fetch_mediamixer'),
+    path('api/fetch/teads/', api.fetch_teads_api, name='fetch_teads'),
+    path('api/fetch/aceplanet/', api.fetch_aceplanet_api, name='fetch_aceplanet'),
+    path("credentials/adsense/auth/", api.adsense_auth_start, name="adsense_auth_start"),
+    path("credentials/adsense/callback/", api.adsense_auth_callback, name="adsense_auth_callback"),
+    path("credentials/admanager/auth/", api.admanager_auth_start, name="admanager_auth_start"),
+    path("credentials/admanager/callback/", api.admanager_auth_callback, name="admanager_auth_callback"),
+    path("api/stats/excel/", api_stats_excel_view, name="api_stats_excel"),
+    path("api/adpost/upload/", api.upload_adpost_excel, name="upload_adpost_excel"),
+    path("api/taboola/upload/", api.upload_taboola_excel, name="upload_taboola_excel"),
+    path("report/", report_view, name="report"),
+    path("publisher-report/", publisher_report_view, name="publisher_report"),
+    path("purchase-report/", purchase_report_view, name='purchase_report'),
+    path("api/publisher-detail-data/", publisher_detail_data_api, name="publisher_detail_data_api"),
+    path("download-publisher-detail-excel/", download_publisher_detail_excel, name="download_publisher_detail_excel"),
+    path("sales-report/", sales_report_view, name='sales_report'),
+    path("sales-report/download/", sales_excel_download_view, name='sales_excel_download'),
+    path("sales-api/", sales_api_view, name='sales_api'),
+    
+    # 정산주관부서 관리 URLs
+    path("settlement-departments/", settlement_department_list, name='settlement_department_list'),
+    path("settlement-departments/create/", settlement_department_create, name='settlement_department_create'),
+    path("settlement-departments/<int:pk>/edit/", settlement_department_edit, name='settlement_department_edit'),
+    path("settlement-departments/<int:pk>/delete/", settlement_department_delete, name='settlement_department_delete'),
+    
+    # 매입 그룹 관리 URLs
+    path('purchase-group/batch-update/', purchase_group_batch_update, name='purchase_group_batch_update'),
+    path('purchase-group/<str:request_key>/', purchase_group_detail_api, name='purchase_group_detail_api'),
+    
+    # 광고 단위 매핑 관리 URLs
+    path('ad-units/', ad_units_management_view, name='ad_units_management'),
+    path('api/ad-units/<str:platform>/data/', ad_units_data_api, name='ad_units_data_api'),
+    path('api/ad-units/adsense/', adsense_ad_units_api, name='adsense_ad_units_api'),
+    path('api/ad-units/admanager/', admanager_ad_units_api, name='admanager_ad_units_api'),
+    
+    # 환율 관리 URLs
+    path('exchange-rates/', exchange_rate_list, name='exchange_rate_list'),
+    path('exchange-rates/create/', exchange_rate_create, name='exchange_rate_create'),
+    path('exchange-rates/<int:pk>/edit/', exchange_rate_edit, name='exchange_rate_edit'),
+    path('exchange-rates/<int:pk>/delete/', exchange_rate_delete, name='exchange_rate_delete'),
+    
+    # Data Collection URLs
+    path('data-collection/', data_collection_view, name='data_collection'),
+    path('api/admanager/reports/', get_admanager_reports_api, name='get_admanager_reports'),
+    path('api/admanager/save-report/', save_admanager_report_api, name='save_admanager_report'),
+    path('api/admanager/current-report/', get_admanager_current_report_api, name='get_admanager_current_report'),
+    
+    # 기타수익 관리 URLs
+    path('api/save-other-revenue/', save_other_revenue, name='save_other_revenue'),
+    
+    # 월별 조정 관리 URLs
+    path('api/save-monthly-adjustment/', save_monthly_adjustment, name='save_monthly_adjustment'),
+    
+    # Member 검색 API
+    path('api/member-search/', member_search_api, name='member_search_api'),
+]

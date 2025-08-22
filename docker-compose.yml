@@ -1,0 +1,33 @@
+services:
+  web:
+    build: .
+    command: ["./docker-entrypoint.sh"]
+    container_name: adstat
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    ports:
+      - "80:8000"
+    environment:
+      - MYSQL_DB=notiplus_crm
+      - MYSQL_USER=notiplus_crm
+      - MYSQL_PASSWORD=crm11!
+      - MYSQL_HOST=newspic.c8oi6pnysk97.ap-northeast-2.rds.amazonaws.com
+      - MYSQL_HOST_NEWSPIC=newspic-replica.c8oi6pnysk97.ap-northeast-2.rds.amazonaws.com
+      - MYSQL_PORT=3306
+      - ENCRYPTION_KEY=encryption_not!plus_crm_sstar
+      - DEBUG=1
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,3.35.28.233
+      - DJANGO_SETTINGS_MODULE=config.settings
+      - PYTHONUNBUFFERED=1
+      - DISPLAY=:99
+
+  phpmyadmin:
+    image: phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      - PMA_HOST=newspic.c8oi6pnysk97.ap-northeast-2.rds.amazonaws.com
+      - PMA_USER=notiplus_crm
+      - PMA_PASSWORD=crm11!
+    ports:
+      - "5050:80"

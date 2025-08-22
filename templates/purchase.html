@@ -1,0 +1,982 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load custom_filters %}
+{% block title %}매입 현황{% endblock %}
+{% block content %}
+<style>
+  .table {
+    font-size: 0.75rem;
+    min-width: 400px;
+  }
+  .table td, .table th {
+    white-space: nowrap;
+  }
+  @media (max-width: 768px) {
+    .table-responsive {
+      font-size: 0.7rem;
+    }
+    .table thead th {
+      white-space: nowrap;
+    }
+    .table td, .table th {
+      min-width: 140px;
+    }
+  }
+  [data-bs-theme="dark"] .table {
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .table-bordered {
+    border-color: #495057;
+  }
+  [data-bs-theme="dark"] .table-light {
+    background-color: #343a40;
+  }
+  [data-bs-theme="dark"] .table-light th {
+    background-color: #343a40;
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .bg-light {
+    background-color: #343a40 !important;
+    color: #e9ecef !important;
+  }
+  [data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+  }
+  .table thead th {
+      vertical-align: middle !important;
+      padding: 0.5rem;
+      text-align: center;
+  }
+  .section-card {
+    background-color: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  }
+  [data-bs-theme="dark"] .section-card {
+    background-color: #343a40;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  }
+  .section-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 0.5rem;
+  }
+  [data-bs-theme="dark"] .section-title {
+    color: #e9ecef;
+    border-bottom-color: #495057;
+  }
+  .total-row {
+    background-color: #f8f9fa;
+    font-weight: bold;
+  }
+  [data-bs-theme="dark"] .total-row {
+    background-color: #2c3034;
+  }
+  .highlight {
+    background-color: #e6e0f8;
+  }
+  [data-bs-theme="dark"] .highlight {
+    background-color: #4a4267;
+  }
+  .sub-header {
+      font-size: 0.75em;
+      font-weight: normal;
+      color: #6c757d;
+  }
+  [data-bs-theme="dark"] .sub-header {
+      color: #adb5bd;
+  }
+  .table th {
+      white-space: nowrap;
+      vertical-align: middle;
+      padding: 0.5rem 0.25rem;
+  }
+  .table td {
+      padding: 0.25rem;
+      vertical-align: middle;
+  }
+  .form-control-sm, .form-select-sm {
+      padding: 0.25rem 0.5rem;
+      min-height: auto;
+      font-size: 0.75rem;
+  }
+  .form-select-sm option {
+      white-space: normal;
+      word-wrap: break-word;
+  }
+  .table-responsive {
+      overflow-x: auto;
+      max-width: 100%;
+  }
+  .tooltip-inner {
+      max-width: 400px;
+      text-align: left;
+      font-size: 0.75rem;
+      line-height: 1.4;
+  }
+  .tooltip-inner strong {
+      color: #fff;
+  }
+  .tooltip-inner br {
+      margin-bottom: 2px;
+  }
+  .btn-sm {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+  }
+  .department-manage-btn {
+      font-size: 0.65rem;
+      padding: 0.2rem 0.4rem;
+      margin-top: 0.25rem;
+  }
+  .change-positive {
+      color: #198754 !important;
+      font-weight: 500;
+  }
+  .change-negative {
+      color: #dc3545 !important;
+      font-weight: 500;
+  }
+  .change-zero {
+      color: #6c757d !important;
+  }
+  [data-bs-theme="dark"] .change-positive {
+      color: #75b798 !important;
+  }
+  [data-bs-theme="dark"] .change-negative {
+      color: #ea868f !important;
+  }
+  [data-bs-theme="dark"] .change-zero {
+      color: #adb5bd !important;
+  }
+  .no-group {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  [data-bs-theme="dark"] .no-group {
+    background-color: #3d2c02;
+    color: #ffc107;
+  }
+  .editable-cell {
+    cursor: pointer;
+    position: relative;
+  }
+  .editable-cell:hover {
+    background-color: #f8f9fa;
+  }
+  [data-bs-theme="dark"] .editable-cell:hover {
+    background-color: #495057;
+  }
+  .edit-input {
+    width: 100%;
+    border: 1px solid #007bff;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 0.9rem;
+  }
+  .action-buttons {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+  }
+  .action-buttons .btn {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+  }
+  .form-section {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+  }
+  [data-bs-theme="dark"] .form-section {
+    background-color: #2c3034;
+    border-color: #495057;
+  }
+</style>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0 fw-bold">매입 현황</h2>
+    </div>
+
+    <!-- ===== 폼 1: 조회 조건 폼 ===== -->
+    <div class="form-section">
+        <h5 class="mb-3">조회 조건</h5>
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="year" class="form-label">조회년도</label>
+                <input type="number" class="form-control form-control-sm" id="year" name="year" value="{{ year }}" placeholder="YYYY" min="2000" max="2099">
+            </div>
+            <div class="col-md-3">
+                <label for="search" class="form-label">검색어</label>
+                <input type="text" class="form-control form-control-sm" id="search" name="search" value="{{ search_query }}" placeholder="멤버코드, 멤버명, 거래처명, 서비스명">
+            </div>
+            <div class="col-md-2">
+                <div class="form-check form-switch">
+                    <input type="hidden" name="important_only" value="0" />
+                    <input class="form-check-input" type="checkbox" role="switch" id="important_only" name="important_only" value="1" {% if important_only %}checked{% endif %}>
+                    <label class="form-check-label" for="important_only">주요항목만</label>
+                </div>
+            </div>
+            <div class="col-md-1">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="fas fa-search"></i> 조회
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- ===== 섹션 2: 매입 현황 ===== -->
+    <div class="section-card">
+        <div class="section-title">
+            <i class="fas fa-chart-line me-2"></i>월별 매입 현황
+        </div>
+
+        <!-- ===== 폼 2: 수기 입력 항목 저장 폼 ===== -->
+        <form id="mainForm" method="post" enctype="multipart/form-data" onsubmit="return handleFormSubmit(event)">
+            {% csrf_token %}
+            <div class="table-responsive mb-3">
+                <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+                    <thead class="table-light">
+                        <tr>
+                            <th rowspan="2" style="width: 40px;">No.</th>
+                            <th style="width: 50px;">
+                                <input type="checkbox" class="form-check-input" id="selectAllRows">
+                            </th>
+                            <th style="width: 50px;">주요</th>
+                            <th>서비스명<br><span class="sub-header">(수기입력)</span></th>
+                            <th>거래처명<br><span class="sub-header">(수기입력)</span></th>
+                            <th>단가<br><span class="sub-header">(수기입력)</span></th>
+                            <th>단가유형</th>
+                            <th rowspan="2">퍼블리셔코드</th>
+                            {% for month in months %}
+                                <th colspan="2">{{ year }}.{{ month|stringformat:"02d" }}</th>
+                            {% endfor %}
+                        </tr>
+                        <tr>
+                            <th style="padding: 0.25rem;">
+                                <button type="button" id="applyBulkChanges" class="btn btn-primary btn-sm" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
+                                    일괄 적용
+                                </button>
+                            </th>
+                            <th style="padding: 0.25rem;">
+                                <input type="checkbox" id="bulkImportant" class="form-check-input" style="font-size: 0.65rem;">
+                            </th>
+                            <th style="padding: 0.25rem;">
+                                <input type="text" id="bulkServiceName" class="form-control form-control-sm" placeholder="서비스명" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
+                            </th>
+                            <th style="padding: 0.25rem;">
+                                <input type="text" id="bulkCompanyName" class="form-control form-control-sm" placeholder="거래처명" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
+                            </th>
+                            <th style="padding: 0.25rem;">
+                                <input type="number" id="bulkUnitPrice" class="form-control form-control-sm" placeholder="단가" step="0.01" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
+                            </th>
+                            <th style="padding: 0.25rem;">
+                                <select id="bulkUnitType" class="form-select form-select-sm" style="font-size: 0.65rem; padding: 0.2rem 0.4rem;">
+                                    <option value="">선택</option>
+                                    <option value="percent">퍼센트 (%)</option>
+                                    <option value="rate">요율</option>
+                                </select>
+                            </th>
+                            {% for month in months %}
+                                <th style="padding: 0.25rem;">{{ month }}월</th>
+                                <th style="padding: 0.25rem;">증감</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in purchase_data %}
+                        <tr {% if not item.has_group %}class="no-group"{% endif %}>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                <input type="hidden" name="row_codes" value="{{ item.publisher_code }}">
+                                <input type="checkbox" class="form-check-input row-checkbox" value="{{ item.publisher_code }}">
+                            </td>
+                            <td>
+                                <input type="checkbox" class="form-check-input important-checkbox" 
+                                       name="is_important_{{ item.publisher_code }}" 
+                                       value="1" 
+                                       {% if item.is_important %}checked{% endif %}>
+                            </td>
+                            <td>
+                                <input type="text" 
+                                       name="service_name_{{ item.publisher_code }}" 
+                                       value="{{ item.service_name }}" 
+                                       class="form-control form-control-sm" 
+                                       style="font-size: 0.7rem; min-width: 120px;">
+                            </td>
+                            <td>
+                                <input type="text" 
+                                       name="company_name_{{ item.publisher_code }}" 
+                                       value="{{ item.company_name }}" 
+                                       class="form-control form-control-sm" 
+                                       style="font-size: 0.7rem; min-width: 120px;">
+                            </td>
+                            <td>
+                                <input type="number" 
+                                       name="unit_price_{{ item.publisher_code }}" 
+                                       value="{{ item.unit_price|cut:'%'|cut:'월별변동' }}" 
+                                       step="0.01"
+                                       class="form-control form-control-sm" 
+                                       style="font-size: 0.7rem; min-width: 80px;">
+                            </td>
+                            <td>
+                                <select name="unit_type_{{ item.publisher_code }}" class="form-select form-select-sm" style="font-size: 0.7rem; min-width: 100px;">
+                                    <option value="percent" {% if item.unit_type == 'percent' %}selected{% endif %}>퍼센트 (%)</option>
+                                    <option value="rate" {% if item.unit_type == 'rate' %}selected{% endif %}>요율</option>
+                                </select>
+                            </td>
+                            <td>{{ item.publisher_code }}</td>
+                            {% for month in months %}
+                                <td>{{ item.monthly_cost|get_item:month|default:0|floatformat:"0"|intcomma }}</td>
+                                <td>
+                                    {% if month > current_month and year == current_year or month == current_month and year == current_year %}
+                                        -
+                                    {% else %}
+                                        {% with change=item.monthly_changes|get_item:month %}
+                                            {% if change.amount > 0 %}
+                                                <span class="change-positive">+{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% elif change.amount < 0 %}
+                                                <span class="change-negative">{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% else %}
+                                                <span class="change-zero">0</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                        <tr class="total-row">
+                            <td colspan="8" class="text-end">퍼블리셔 매입 비용 합계</td>
+                            {% for month in months %}
+                                <td>{{ publisher_total|get_item:month|default:0|floatformat:"0"|intcomma }}</td>
+                                <td>
+                                    {% if month > current_month and year == current_year or month == current_month and year == current_year %}
+                                        -
+                                    {% else %}
+                                        {% with change=publisher_changes|get_item:month %}
+                                            {% if change.amount > 0 %}
+                                                <span class="change-positive">+{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% elif change.amount < 0 %}
+                                                <span class="change-negative">{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% else %}
+                                                <span class="change-zero">0</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="8" class="text-end">파트너스 매입 비용 합계</td>
+                            {% for month in months %}
+                                <td>{{ partners_total|get_item:month|default:0|floatformat:"0"|intcomma }}</td>
+                                <td>
+                                    {% if month > current_month and year == current_year or month == current_month and year == current_year %}
+                                        -
+                                    {% else %}
+                                        {% with change=partners_changes|get_item:month %}
+                                            {% if change.amount > 0 %}
+                                                <span class="change-positive">+{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% elif change.amount < 0 %}
+                                                <span class="change-negative">{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% else %}
+                                                <span class="change-zero">0</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="8" class="text-end">뉴스픽 매입 비용 총 합계</td>
+                            {% for month in months %}
+                                <td class="text-primary">{{ total|get_item:month|default:0|floatformat:"0"|intcomma }}</td>
+                                <td>
+                                    {% if month > current_month and year == current_year or month == current_month and year == current_year %}
+                                        -
+                                    {% else %}
+                                        {% with change=total_changes|get_item:month %}
+                                            {% if change.amount > 0 %}
+                                                <span class="change-positive">+{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% elif change.amount < 0 %}
+                                                <span class="change-negative">{{ change.amount|floatformat:"0"|intcomma }}</span>
+                                            {% else %}
+                                                <span class="change-zero">0</span>
+                                            {% endif %}
+                                        {% endwith %}
+                                    {% endif %}
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="text-end">
+                <button type="submit" name="save_changes" value="true" class="btn btn-info btn-sm">
+                    <i class="fas fa-save"></i> 수기 입력 항목 저장
+                </button>
+            </div>
+        </form>
+        
+        <!-- 페이징 네비게이션 -->
+        {% if page_obj and page_obj.has_other_pages %}
+        <nav aria-label="퍼블리셔 목록 페이징" class="mt-3">
+            <ul class="pagination pagination-sm justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?year={{ year }}&adjustment_month={{ selected_adjustment_month }}{% if search_query %}&search={{ search_query }}{% endif %}&important_only={% if important_only %}1{% else %}0{% endif %}&page=1" aria-label="첫 페이지">
+                            <span aria-hidden="true">&laquo;&laquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?year={{ year }}&adjustment_month={{ selected_adjustment_month }}{% if search_query %}&search={{ search_query }}{% endif %}&important_only={% if important_only %}1{% else %}0{% endif %}&page={{ page_obj.previous_page_number }}" aria-label="이전 페이지">
+                            <span aria-hidden="true">&laquo;</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo;&laquo;</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">&laquo;</span>
+                    </li>
+                {% endif %}
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?year={{ year }}&adjustment_month={{ selected_adjustment_month }}{% if search_query %}&search={{ search_query }}{% endif %}&important_only={% if important_only %}1{% else %}0{% endif %}&page={{ num }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?year={{ year }}&adjustment_month={{ selected_adjustment_month }}{% if search_query %}&search={{ search_query }}{% endif %}&important_only={% if important_only %}1{% else %}0{% endif %}&page={{ page_obj.next_page_number }}" aria-label="다음 페이지">
+                            <span aria-hidden="true">&raquo;</span>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?year={{ year }}&adjustment_month={{ selected_adjustment_month }}{% if search_query %}&search={{ search_query }}{% endif %}&important_only={% if important_only %}1{% else %}0{% endif %}&page={{ page_obj.paginator.num_pages }}" aria-label="마지막 페이지">
+                            <span aria-hidden="true">&raquo;&raquo;</span>
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">&raquo;</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">&raquo;&raquo;</span>
+                    </li>
+                {% endif %}
+            </ul>
+            
+            <!-- 페이지 정보 표시 -->
+            <div class="text-center text-muted small">
+                {{ page_obj.start_index }} - {{ page_obj.end_index }} / {{ page_obj.paginator.count }}개 퍼블리셔
+                (페이지 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }})
+            </div>
+        </nav>
+        {% endif %}
+        
+        <!-- 검색 결과 정보 표시 -->
+        {% if search_query and page_obj is None %}
+        <div class="text-center text-muted small mt-3">
+            검색 결과: {{ purchase_data|length }}개 퍼블리셔
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ===== 섹션 3: 퍼블리셔 세부 데이터 ===== -->
+    <div class="section-card">
+        <div class="section-title">
+            <i class="fas fa-chart-bar me-2"></i>퍼블리셔 세부 데이터
+        </div>
+
+        <!-- ===== 폼 3: 세부 데이터 조회 폼 ===== -->
+        <form id="detailForm" class="row g-3 align-items-end mb-3">
+            <div class="col-md-3">
+                <label for="detail_start_date" class="form-label">시작일</label>
+                <input type="date" class="form-control form-control-sm" id="detail_start_date" name="detail_start_date">
+            </div>
+            <div class="col-md-3">
+                <label for="detail_end_date" class="form-label">종료일</label>
+                <input type="date" class="form-control form-control-sm" id="detail_end_date" name="detail_end_date">
+            </div>
+            <div class="col-md-3">
+                <button type="button" id="loadDetailData" class="btn btn-primary btn-sm">
+                    <i class="fas fa-download"></i> 세부 데이터 불러오기
+                </button>
+            </div>
+            <div class="col-md-3">
+                <button type="button" id="downloadExcel" class="btn btn-success btn-sm" style="display: none;">
+                    <i class="fas fa-file-excel"></i> 엑셀로 내보내기
+                </button>
+            </div>
+        </form>
+
+        <div id="loadingIndicator" class="text-center" style="display: none;">
+            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <span class="ms-2">데이터를 불러오는 중...</span>
+        </div>
+
+        <!-- 퍼블리셔 세부 데이터 섹션 (초기에는 숨김) -->
+        <div id="publisherDetailSection" style="display: none;">
+            <div id="publisherDetailTables"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function updateSelectAllCheckboxState() {
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const selectAllCheckbox = document.getElementById('selectAllRows');
+    if (!selectAllCheckbox) return;
+
+    const allChecked = Array.from(rowCheckboxes).every(cb => cb.checked);
+    const someChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+    
+    selectAllCheckbox.checked = allChecked;
+    selectAllCheckbox.indeterminate = someChecked && !allChecked;
+}
+
+// 폼 제출 핸들러
+function handleFormSubmit(event) {
+    // 현재 포커스된 요소 확인
+    const activeElement = document.activeElement;
+    
+    // 수정사항 저장 버튼이 클릭된 경우 폼 제출 허용
+    if (event.submitter && event.submitter.name === 'save_changes') {
+        return true;
+    }
+    
+    // 엔터키로 인한 자동 제출 방지
+    if (activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'SELECT' ||
+        activeElement.tagName === 'TEXTAREA'
+    )) {
+        event.preventDefault();
+        return false;
+    }
+    
+    // 정상적인 버튼 클릭으로 제출된 경우는 허용
+    return true;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Document ready');
+    
+    // 전체 선택 체크박스
+    const selectAllCheckbox = document.getElementById('selectAllRows');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    
+    selectAllCheckbox.addEventListener('change', function() {
+        rowCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+    
+    // 개별 체크박스 변경 시 전체 선택 체크박스 상태 업데이트
+    rowCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectAllCheckboxState();
+        });
+    });
+    
+    // 전체 주요 체크박스 (헤더의 bulkImportant)
+    const bulkImportantCheckbox = document.getElementById('bulkImportant');
+    const importantCheckboxes = document.querySelectorAll('.important-checkbox');
+
+    function updateBulkImportantCheckboxState() {
+        if (importantCheckboxes.length === 0) {
+            bulkImportantCheckbox.checked = false;
+            bulkImportantCheckbox.indeterminate = false;
+            return;
+        }
+        const allImportant = Array.from(importantCheckboxes).every(cb => cb.checked);
+        const someImportant = Array.from(importantCheckboxes).some(cb => cb.checked);
+        
+        bulkImportantCheckbox.checked = allImportant;
+        bulkImportantCheckbox.indeterminate = someImportant && !allImportant;
+    }
+
+    // 헤더 '주요' 체크박스 클릭 시, 보이는 모든 행의 상태를 변경
+    bulkImportantCheckbox.addEventListener('change', function() {
+        importantCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+    });
+    
+    // 개별 '주요' 체크박스 클릭 시, 헤더 체크박스 상태 업데이트
+    importantCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateBulkImportantCheckboxState();
+        });
+    });
+
+    // 페이지가 처음 로드될 때 헤더 체크박스의 초기 상태를 설정
+    updateBulkImportantCheckboxState();
+    
+    // 일괄 수정 적용
+    const applyBulkChangesBtn = document.getElementById('applyBulkChanges');
+    applyBulkChangesBtn.addEventListener('click', function() {
+        const selectedRows = document.querySelectorAll('.row-checkbox:checked');
+        console.log('Selected rows:', selectedRows.length);
+        
+        if (selectedRows.length === 0) {
+            alert('수정할 항목을 선택해주세요.');
+            return;
+        }
+
+        const changes = {};
+        const bulkServiceName = document.getElementById('bulkServiceName').value;
+        const bulkCompanyName = document.getElementById('bulkCompanyName').value;
+        const bulkUnitPrice = document.getElementById('bulkUnitPrice').value;
+        const bulkUnitType = document.getElementById('bulkUnitType').value;
+
+        if (bulkServiceName) changes.serviceName = bulkServiceName;
+        if (bulkCompanyName) changes.companyName = bulkCompanyName;
+        if (bulkUnitPrice) changes.unitPrice = bulkUnitPrice;
+        if (bulkUnitType) changes.unitType = bulkUnitType;
+
+        if (Object.keys(changes).length === 0) {
+            alert('수정할 값을 입력해주세요.');
+            return;
+        }
+
+        // 선택된 행들에 대해 변경사항 적용
+        selectedRows.forEach(function(checkbox) {
+            const code = checkbox.value;
+            const row = checkbox.closest('tr');
+            console.log('Processing row with code:', code);
+
+            if (changes.serviceName) {
+                const serviceNameInput = row.querySelector('input[name="service_name_' + code + '"]');
+                if (serviceNameInput) serviceNameInput.value = changes.serviceName;
+            }
+            if (changes.companyName) {
+                const companyNameInput = row.querySelector('input[name="company_name_' + code + '"]');
+                if (companyNameInput) companyNameInput.value = changes.companyName;
+            }
+            if (changes.unitPrice) {
+                const unitPriceInput = row.querySelector('input[name="unit_price_' + code + '"]');
+                if (unitPriceInput) unitPriceInput.value = changes.unitPrice;
+            }
+            if (changes.unitType) {
+                const unitTypeSelect = row.querySelector('select[name="unit_type_' + code + '"]');
+                if (unitTypeSelect) unitTypeSelect.value = changes.unitType;
+            }
+        });
+
+        alert('일괄 수정이 완료되었습니다. "수기 입력 항목 저장" 버튼을 클릭하여 저장하세요.');
+    });
+    
+    // 폼 제출 이벤트 리스너
+    const form = document.querySelector('form[method="post"]');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // 수정사항 저장 버튼이 클릭된 경우 폼 제출 허용
+            if (e.submitter && e.submitter.name === 'save_changes') {
+                return true; // 폼 제출 허용
+            }
+            
+            // 다른 경우는 기본 동작
+            return true;
+        });
+    }
+
+    // --- 기간 설정 기본값 (최근 7일) ---
+    const endDateInput = document.getElementById('detail_end_date');
+    const startDateInput = document.getElementById('detail_start_date');
+    if (endDateInput && startDateInput) {
+        const today = new Date();
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(today.getDate() - 6);
+        endDateInput.value = today.toISOString().split('T')[0];
+        startDateInput.value = sevenDaysAgo.toISOString().split('T')[0];
+    }
+
+    // 퍼블리셔 세부 데이터 불러오기 기능
+    const loadDetailDataBtn = document.getElementById('loadDetailData');
+    if (loadDetailDataBtn) {
+        loadDetailDataBtn.addEventListener('click', function() {
+            loadPublisherDetailData();
+        });
+    }
+
+    function loadPublisherDetailData() {
+        const button = document.getElementById('loadDetailData');
+        const downloadBtn = document.getElementById('downloadExcel');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const detailSection = document.getElementById('publisherDetailSection');
+
+        button.disabled = true;
+        downloadBtn.style.display = 'none';
+        loadingIndicator.style.display = 'block';
+
+        const startDate = document.getElementById('detail_start_date').value;
+        const endDate = document.getElementById('detail_end_date').value;
+
+        if (!startDate || !endDate) {
+            alert('시작일과 종료일을 모두 선택해주세요.');
+            button.disabled = false;
+            loadingIndicator.style.display = 'none';
+            return;
+        }
+
+        const publisherCodes = Array.from(document.querySelectorAll('.row-checkbox')).map(cb => cb.value);
+        if (publisherCodes.length === 0) {
+            alert('조회할 퍼블리셔가 없습니다.');
+            button.disabled = false;
+            loadingIndicator.style.display = 'none';
+            return;
+        }
+
+        fetch(`/api/publisher-detail-data/?start_date=${startDate}&end_date=${endDate}&publishers=${publisherCodes.join(',')}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    renderPublisherDetailTables(data.publishers);
+                    detailSection.style.display = 'block';
+                    button.innerHTML = '<i class="fas fa-refresh"></i> 데이터 새로고침';
+                    downloadBtn.style.display = 'inline-block';
+                } else {
+                    alert('데이터를 불러오는데 실패했습니다: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('데이터를 불러오는데 실패했습니다.');
+            })
+            .finally(() => {
+                button.disabled = false;
+                loadingIndicator.style.display = 'none';
+            });
+    }
+
+    // --- 엑셀 다운로드 ---
+    const downloadBtn = document.getElementById('downloadExcel');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function() {
+            const startDate = document.getElementById('detail_start_date').value;
+            const endDate = document.getElementById('detail_end_date').value;
+            const publisherCodes = Array.from(document.querySelectorAll('.row-checkbox')).map(cb => cb.value);
+
+            if (publisherCodes.length === 0) {
+                alert('엑셀로 내보낼 퍼블리셔가 없습니다.');
+                return;
+            }
+
+            const downloadUrl = `/download-publisher-detail-excel/?start_date=${startDate}&end_date=${endDate}&publishers=${publisherCodes.join(',')}`;
+            window.location.href = downloadUrl;
+        });
+    }
+
+    function renderPublisherDetailTables(publishers) {
+        const detailTables = document.getElementById('publisherDetailTables');
+        detailTables.innerHTML = '';
+
+        publishers.forEach(publisher => {
+            const tableRows = publisher.detail_data.map(row => `
+                <tr>
+                    <td>${row.date}</td>
+                    <td>${row.ad_revenue_formatted || formatNumber(row.ad_revenue)}</td>
+                    <td>${row.rs_rate_display}</td>
+                    <td>${row.purchase_cost_formatted || formatNumber(row.purchase_cost)}</td>
+                </tr>
+            `).join('');
+
+            const publisherDiv = document.createElement('div');
+            publisherDiv.className = 'mb-4';
+            publisherDiv.innerHTML = `
+                <div class="mb-2 small"><strong>${publisher.label}</strong></div>
+                <div class="table-responsive">
+                    <table class="table table-bordered text-center" style="font-size: 0.75rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th rowspan="2">일자</th>
+                                <th colspan="1">${publisher.column_name}</th>
+                                <th colspan="1">RS율</th>
+                                <th colspan="1">매입비용</th>
+                            </tr>
+                            <tr>
+                                <th>수식</th>
+                                <th>고정값</th>
+                                <th>수식</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${tableRows}
+                            <tr class="total-row">
+                                <td>합계</td>
+                                <td>${formatNumber(publisher.detail_totals.ad_revenue)}</td>
+                                <td></td>
+                                <td>${formatNumber(publisher.detail_totals.purchase_cost)}</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            detailTables.appendChild(publisherDiv);
+        });
+    }
+
+    function formatNumber(num) {
+        if (num === null || num === undefined || num === '-') return '-';
+        return new Intl.NumberFormat('ko-KR').format(Math.round(num));
+    }
+
+    // 월별 조정 저장 함수 (전역 스코프에 정의)
+    window.saveMonthlyAdjustment = function(input) {
+        console.log('saveMonthlyAdjustment 함수가 호출되었습니다.');
+        const yearMonth = input.getAttribute('data-year-month');
+        const adjustmentType = input.getAttribute('data-adjustment-type');
+        const salesType = input.getAttribute('data-sales-type');
+        let adjustmentAmount = 0;
+        let adjustmentNote = '';
+        let taxDeadline = null;
+        
+        console.log('입력 필드 정보:', {
+            type: input.type,
+            value: input.value,
+            yearMonth: yearMonth,
+            adjustmentType: adjustmentType,
+            salesType: salesType
+        });
+        
+        // 입력 타입에 따라 값 추출
+        if (input.type === 'number') {
+            adjustmentAmount = parseFloat(input.value) || 0;
+        } else if (input.type === 'text') {
+            adjustmentNote = input.value.trim();
+        } else if (input.type === 'date') {
+            taxDeadline = input.value;
+        }
+        
+        console.log('추출된 값:', {
+            adjustmentAmount: adjustmentAmount,
+            adjustmentNote: adjustmentNote,
+            taxDeadline: taxDeadline
+        });
+        
+        // API 호출
+        const requestData = {
+            year_month: yearMonth,
+            adjustment_type: adjustmentType,
+            sales_type: salesType,
+            adjustment_amount: adjustmentAmount,
+            adjustment_note: adjustmentNote,
+            tax_deadline: taxDeadline
+        };
+        
+        console.log('API 요청 데이터:', requestData);
+        console.log('API URL:', '{% url "save_monthly_adjustment" %}');
+        
+        fetch('{% url "save_monthly_adjustment" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => {
+            console.log('API 응답 상태:', response.status);
+            return response.json();
+        })
+        .then(data => {
+            console.log('API 응답 데이터:', data);
+            if (data.success) {
+                // 성공 시 합계 업데이트
+                updateMonthlyTotals(yearMonth, adjustmentType);
+                
+                // 성공 메시지 표시 (선택사항)
+                if (data.action === 'created') {
+                    console.log('월별 조정이 저장되었습니다.');
+                } else if (data.action === 'updated') {
+                    console.log('월별 조정이 수정되었습니다.');
+                }
+            } else {
+                console.error('저장 실패:', data.error);
+                alert('저장 중 오류가 발생했습니다: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('저장 중 오류가 발생했습니다.');
+        });
+    }
+
+    // 월별 합계 업데이트 함수
+    function updateMonthlyTotals(yearMonth, adjustmentType) {
+        if (adjustmentType === 'purchase') {
+            // 매입 합계 업데이트
+            const purchaseInputs = document.querySelectorAll(`.adjustment-input[data-year-month="${yearMonth}"][data-adjustment-type="purchase"]`);
+            let total = 0;
+            
+            purchaseInputs.forEach(input => {
+                const value = parseFloat(input.value) || 0;
+                total += value;
+            });
+            
+            // 합계 표시 업데이트
+            if (yearMonth === '{{ selected_month }}') {
+                const totalElement = document.getElementById('current-purchase-total');
+                if (totalElement) {
+                    totalElement.textContent = total.toLocaleString();
+                }
+            } else if (yearMonth === '{{ prev_month }}') {
+                const totalElement = document.getElementById('prev-purchase-total');
+                if (totalElement) {
+                    totalElement.textContent = total.toLocaleString();
+                }
+            }
+        }
+    }
+
+    // 페이지 로드 시 각 월별 합계 계산
+    document.addEventListener('DOMContentLoaded', function() {
+        updateMonthlyTotals('{{ selected_month }}', 'purchase');
+        updateMonthlyTotals('{{ prev_month }}', 'purchase');
+    });
+});
+</script>
+{% endblock %}

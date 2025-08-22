@@ -1,0 +1,1106 @@
+{% extends "base.html" %}
+{% block title %}대시보드{% endblock %}
+{% load custom_filters %}
+{% block content %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+
+<h2 class="mb-4 text-center">📊 수익 대시보드</h2>
+
+<!-- ✅ 플랫폼별 수집 버튼 -->
+<div class="mb-3 text-end">
+  <div class="mb-4">
+    <label class="form-label">자동 수집 주기</label>
+    <select id="autoFetchDays" class="form-select form-select-sm d-inline-block" style="width: 100px;">
+      <option value="0">사용 안 함</option>
+      <option value="1">매일</option>
+      <option value="3">3일마다</option>
+      <option value="7">7일마다</option>
+    </select>
+  </div>
+
+  <div class="mb-1">
+    <div class="d-flex align-items-center justify-content-end gap-2">
+      <select id="dataCollectionPlatform" class="form-select form-select-sm" style="width: 280px;">
+        <option value="">플랫폼 선택 - 마지막 수집 시간</option>
+        {% for platform in platform_aliases_grouped.keys %}
+          <option value="{{ platform }}">
+            {{ cred.platform }} - 
+            {% if platform == 'adpost' %}
+              계정별 확인
+            {% elif last_fetched_times|get_item:platform %}
+              {{ last_fetched_times|get_item:platform|date:"Y-m-d H:i:s" }}
+            {% else %}
+              수집 이력 없음
+            {% endif %}
+          </option>
+        {% endfor %}
+      </select>
+
+      <!-- Adpost 데이터 업로드 UI -->
+      <div id="adpostUploadUI" class="d-none">
+        <select id="adpost_account" class="form-select form-select-sm" style="width: 300px;">
+          <option value="">계정 선택</option>
+          {% for alias in platform_aliases_grouped.adpost %}
+            <option value="{{ alias }}">
+              {{ alias }} - 
+              {% if last_fetched_times|get_item:alias %}
+                {{ last_fetched_times|get_item:alias|date:"Y-m-d H:i:s" }}
+              {% else %}
+                데이터 없음
+              {% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- 기타 플랫폼 데이터 수집 버튼 -->
+      <div id="platformFetchUI" class="d-none d-flex align-items-center gap-2">
+        <button id="fetchDataBtn" class="btn btn-outline-success btn-sm">
+          🔄 데이터 불러오기
+        </button>
+      </div>
+    </div>
+
+    <!-- Adpost 파일 업로드 UI -->
+    <div id="adpostFileUploadUI" class="d-none d-flex align-items-center justify-content-end gap-2 mt-2">
+      <input type="file" id="adpost_excel" accept=".csv,.xlsx,.xls" class="form-control form-control-sm" style="width: 266px;">
+      <button onclick="uploadAdpostExcel()" class="btn btn-outline-primary btn-sm">데이터 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- ✅ 필터 UI -->
+<form class="container-fluid mb-4">
+  <div class="row g-2 mb-2">
+    <div class="col-6 col-md-auto">
+      <label class="form-label">시작일</label>
+      <input type="date" id="start_date" class="form-control" />
+    </div>
+    <div class="col-6 col-md-auto">
+      <label class="form-label">종료일</label>
+      <input type="date" id="end_date" class="form-control" />
+    </div>
+  </div>
+
+  <div class="row g-2 mb-2">
+    <div class="col-6 col-md-auto">
+      <label class="form-label">플랫폼</label>
+      <select id="platformSelector" class="form-select">
+        <option value="all">전체</option>
+        {% for platform in platform_aliases_grouped.keys %}
+          <option value="{{ platform }}"> {{ platform|platform_display }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-6 col-md-auto">
+      <label class="form-label">계정</label>
+      <select id="accountSelector" class="form-select">
+        <option value="all">전체</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-auto">
+      <label class="form-label">광고 단위</label>
+      <select id="adUnitSelector" class="form-select">
+        <option value="all">전체</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row g-2 mb-2 justify-content-md-end">
+    <div class="col-6 col-sm-4 col-md-auto">
+      <label class="form-label">그래프 유형</label>
+      <select id="chartTypeSelector" class="form-select">
+        <option value="bar" selected>막대</option>
+        <option value="line">선</option>
+      </select>
+    </div>
+    <div class="col-6 col-sm-4 col-md-auto">
+      <label class="form-label">보기 단위</label>
+      <select id="groupingSelector" class="form-select">
+        <option value="day">일별</option>
+        <option value="month">월별</option>
+      </select>
+    </div>
+    <div class="col-6 col-sm-4 col-md-auto">
+      <label class="form-label">지표</label>
+      <select id="metricSelector" class="form-select">
+        <option value="earnings">수익</option>
+        <option value="clicks">클릭 수</option>
+        <option value="impressions">광고 요청 수</option>
+        <option value="order_count">주문건수</option>
+        <option value="total_amount">합산금액</option>
+        <option value="ctr">CTR (%)</option>
+        <option value="ppc">PPC (원)</option>
+      </select>
+    </div>
+  </div>
+</form>
+
+<canvas id="earningsChart" height="100" class="mb-5"></canvas>
+
+<!-- 데이터 테이블 -->
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <h4 class="mb-0">데이터 테이블</h4>
+  <div>
+    <button id="resetSortBtn" class="btn btn-sm btn-outline-secondary me-2">
+      <i class="bi bi-arrow-counterclockwise"></i> 정렬 초기화
+    </button>
+    <button id="exportExcelBtn" class="btn btn-sm btn-success">
+      <i class="bi bi-file-earmark-excel"></i> 엑셀 다운로드
+    </button>
+  </div>
+</div>
+
+<div class="table-responsive mt-4 mb-4">
+  <table id="dataTable" class="table table-striped table-hover">
+    <thead>
+      <tr>
+        <th class="sortable" data-sort="date">날짜 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="platform">플랫폼 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="alias">계정 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="earnings">수익 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="clicks">클릭 수 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="impressions">광고 요청 수 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="order_count">주문건수 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="total_amount">합산금액 <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="ctr">CTR (%) <span class="sort-icon"></span></th>
+        <th class="sortable" data-sort="ppc">PPC <span class="sort-icon"></span></th>
+      </tr>
+    </thead>
+    <tbody>
+    </tbody>
+  </table>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let chart = null;
+  let currentData = []; // 전역 변수로 데이터 저장
+  const platformAliases = {{ platform_aliases_grouped|safe }};
+  const credentialColors = {{ credential_colors|safe }};
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+  // 쿠키 관련 함수
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+
+  // 시스템 다크모드 감지 및 차트 업데이트
+  function updateChartTheme() {
+    const isDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (chart) {
+      chart.options.plugins.title.color = isDarkMode ? "#ffffff" : "#000000";
+      chart.options.plugins.legend.labels.color = isDarkMode ? "#ffffff" : "#000000";
+      chart.options.scales.x.ticks.color = isDarkMode ? "#ffffff" : "#000000";
+      chart.options.scales.x.grid.color = isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)";
+      chart.options.scales.y.ticks.color = isDarkMode ? "#ffffff" : "#000000";
+      chart.options.scales.y.grid.color = isDarkMode ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.05)";
+      chart.options.scales.y.title.color = isDarkMode ? "#ffffff" : "#000000";
+      chart.update();
+    }
+  }
+
+  // 시스템 테마 변경 감지
+  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', updateChartTheme);
+
+  // 차트 초기화
+  function initChart() {
+    const ctx = $("earningsChart").getContext("2d");
+    chart = new Chart(ctx, {
+      type: $("chartTypeSelector").value,
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true,
+        plugins: {
+          title: { display: true, text: "계정별 지표", color: "#000000" },
+          legend: { labels: { color: "#000000" } }
+        },
+        scales: {
+          x: { 
+            ticks: { color: "#000000" },
+            grid: { color: "rgba(0,0,0,0.05)" }
+          },
+          y: {
+            ticks: { color: "#000000" },
+            grid: { color: "rgba(0,0,0,0.05)" },
+            title: { 
+              display: true, 
+              text: "", 
+              color: "#000000" 
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // 계정 선택기 업데이트
+  function updateAccountSelector() {
+    const platform = $("platformSelector").value;
+    const accountSelector = $("accountSelector");
+    accountSelector.innerHTML = '<option value="all">전체</option>';
+    
+    if (platform !== "all" && platformAliases[platform]) {
+      platformAliases[platform].forEach(alias => {
+        const option = document.createElement("option");
+        option.value = alias;
+        option.textContent = alias;
+        accountSelector.appendChild(option);
+      });
+    }
+    updateAdUnitSelector();
+  }
+
+  // 광고 단위 선택기 업데이트
+  async function updateAdUnitSelector() {
+    const platform = $("platformSelector").value;
+    const alias = $("accountSelector").value;
+    const adUnitSelector = $("adUnitSelector");
+    
+    adUnitSelector.innerHTML = '<option value="all">전체</option>';
+    
+    if (platform !== "all" && alias !== "all") {
+      try {
+        const response = await fetch(`/api/ad-units/?platform=${platform}&alias=${alias}`);
+        if (!response.ok) {
+          throw new Error('서버 응답 오류');
+        }
+        const data = await response.json();
+        
+        if (data.ad_units && Array.isArray(data.ad_units)) {
+          const adUnits = [...new Set(data.ad_units.map(item => ({
+            id: item.ad_unit_id,
+            name: item.ad_unit_name || item.ad_unit_id
+          })))].sort((a, b) => a.name.localeCompare(b.name));
+          
+          adUnits.forEach(unit => {
+            const option = document.createElement("option");
+            option.value = unit.id;
+            option.textContent = unit.name;
+            adUnitSelector.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error("광고 단위 정보를 가져오는데 실패했습니다:", error);
+      }
+    }
+    updateChart();
+  }
+
+  // 차트 업데이트
+  async function updateChart() {
+    const startDate = $("start_date").value;
+    const endDate = $("end_date").value;
+    const platform = $("platformSelector").value;
+    const alias = $("accountSelector").value;
+    const adUnitId = $("adUnitSelector").value;
+    const grouping = $("groupingSelector").value;
+    const metric = $("metricSelector").value;
+
+    if (!startDate || !endDate) return;
+
+    try {
+      const response = await fetch(
+        `/api/stats/?start_date=${startDate}&end_date=${endDate}&platform=${platform}&alias=${alias}&ad_unit_id=${adUnitId}&grouping=${grouping}`
+      );
+      if (!response.ok) {
+        throw new Error('서버 응답 오류');
+      }
+      const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // 데이터를 전역 변수에 저장
+      currentData = data;
+
+      // 데이터 그룹화 (차트용)
+      const groupedData = {};
+      data.forEach(stat => {
+        const key = `${stat.platform}:${stat.alias}`;
+        if (!groupedData[key]) {
+          groupedData[key] = {
+            label: key,
+            data: [],
+            color: credentialColors[key] || "#888888"
+          };
+        }
+        groupedData[key].data.push({
+          x: stat.date,
+          y: stat[metric]
+        });
+      });
+
+      // 차트 데이터 업데이트
+      const labels = [...new Set(data.map(stat => {
+        const date = new Date(stat.date);
+        return grouping === "month" ? 
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : 
+          stat.date;
+      }))].sort();
+
+      const datasets = Object.values(groupedData).map(group => ({
+        label: group.label,
+        data: labels.map(date => {
+          const item = group.data.find(d => {
+            const itemDate = new Date(d.x);
+            const itemDateStr = grouping === "month" ? 
+              `${itemDate.getFullYear()}-${String(itemDate.getMonth() + 1).padStart(2, '0')}` : 
+              d.x;
+            return itemDateStr === date;
+          });
+          return item ? item.y : 0;
+        }),
+        borderColor: group.color,
+        backgroundColor: group.color,
+        tension: 0.3,
+        fill: false
+      }));
+
+      if (!chart) {
+        initChart();
+      }
+
+      chart.config.type = $("chartTypeSelector").value;
+      chart.options.plugins.title.text = `계정별 지표 – ${metricLabels[metric]}`;
+      chart.options.scales.y.title.text = metricYLabels[metric];
+      chart.data.labels = labels;
+      chart.data.datasets = datasets;
+      chart.update();
+
+      // 테이블 데이터 업데이트
+      updateDataTable();
+
+    } catch (error) {
+      console.error("차트 업데이트 실패:", error);
+      alert("데이터를 불러오는데 실패했습니다: " + error.message);
+    }
+  }
+
+  // 정렬 상태 관리
+  let currentSort = {
+    field: 'date',
+    direction: 'desc'
+  };
+
+  // 정렬 초기화 버튼 이벤트
+  document.addEventListener('DOMContentLoaded', () => {
+    // 정렬 초기화 버튼 이벤트
+    document.getElementById('resetSortBtn').addEventListener('click', () => {
+      currentSort = {
+        field: 'date',
+        direction: 'desc'
+      };
+      updateDataTable();
+      updateSortIcons();
+    });
+
+    // 엑셀 다운로드 버튼 이벤트
+    document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
+
+    // 테이블 헤더 클릭 이벤트 설정
+    document.querySelectorAll('.sortable').forEach(header => {
+      header.addEventListener('click', () => {
+        const field = header.dataset.sort;
+        if (currentSort.field === field) {
+          currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+          currentSort.field = field;
+          currentSort.direction = 'asc';
+        }
+        updateDataTable();
+        updateSortIcons();
+      });
+    });
+  });
+
+  // 정렬 아이콘 업데이트
+  function updateSortIcons() {
+    document.querySelectorAll('.sort-icon').forEach(icon => {
+      icon.textContent = '';
+    });
+    const currentHeader = document.querySelector(`[data-sort="${currentSort.field}"]`);
+    if (currentHeader) {
+      const icon = currentHeader.querySelector('.sort-icon');
+      icon.textContent = currentSort.direction === 'asc' ? '↑' : '↓';
+    }
+  }
+
+  // 테이블 데이터 업데이트
+  function updateDataTable() {
+    const tbody = document.querySelector('#dataTable tbody');
+    tbody.innerHTML = '';
+    const grouping = $("groupingSelector").value;
+
+    // 데이터 정렬
+    const sortedData = [...currentData].sort((a, b) => {
+      let valueA = a[currentSort.field];
+      let valueB = b[currentSort.field];
+
+      // 날짜 필드 처리
+      if (currentSort.field === 'date') {
+        valueA = new Date(valueA);
+        valueB = new Date(valueB);
+      }
+      // 숫자 필드 처리
+      else if (['earnings', 'clicks', 'impressions', 'ctr', 'ppc'].includes(currentSort.field)) {
+        valueA = parseFloat(valueA) || 0;
+        valueB = parseFloat(valueB) || 0;
+      }
+
+      if (currentSort.direction === 'asc') {
+        return valueA > valueB ? 1 : -1;
+      } else {
+        return valueA < valueB ? 1 : -1;
+      }
+    });
+
+    // 합계 계산
+    let totalEarnings = 0;
+    let totalClicks = 0;
+    let totalImpressions = 0;
+    let totalOrderCount = 0;
+    let totalAmount = 0;
+
+    sortedData.forEach(stat => {
+      const row = document.createElement('tr');
+      const dateStr = grouping === "month" ? stat.date.substring(0, 7) : stat.date;
+      row.innerHTML = `
+        <td>${dateStr}</td>
+        <td>${stat.platform}</td>
+        <td>${stat.alias}</td>
+        <td>${formatNumber(stat.earnings)}</td>
+        <td>${formatNumber(stat.clicks)}</td>
+        <td>${formatNumber(stat.impressions)}</td>
+        <td>${formatNumber(stat.order_count)}</td>
+        <td>${formatNumber(stat.total_amount)}</td>
+        <td>${formatNumber(stat.ctr)}</td>
+        <td>${formatNumber(stat.ppc)}</td>
+      `;
+      tbody.appendChild(row);
+
+      // 합계 계산
+      totalEarnings += parseFloat(stat.earnings) || 0;
+      totalClicks += parseInt(stat.clicks) || 0;
+      totalImpressions += parseInt(stat.impressions) || 0;
+      totalOrderCount += parseInt(stat.order_count) || 0;
+      totalAmount += parseFloat(stat.total_amount) || 0;
+    });
+
+    // 합계 행 추가 (CTR과 PPC는 총합으로 계산)
+    const totalCtr = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+    const totalPpc = totalClicks > 0 ? (totalEarnings / totalClicks) : 0;
+
+    const totalRow = document.createElement('tr');
+    totalRow.className = 'table-info';
+    totalRow.innerHTML = `
+      <td><strong>합계/평균</strong></td>
+      <td></td>
+      <td></td>
+      <td><strong>${formatNumber(totalEarnings)}</strong></td>
+      <td><strong>${formatNumber(totalClicks)}</strong></td>
+      <td><strong>${formatNumber(totalImpressions)}</strong></td>
+      <td><strong>${formatNumber(totalOrderCount)}</strong></td>
+      <td><strong>${formatNumber(totalAmount)}</strong></td>
+      <td><strong>${formatNumber(totalCtr)}</strong></td>
+      <td><strong>${formatNumber(totalPpc)}</strong></td>
+    `;
+    tbody.appendChild(totalRow);
+  }
+
+  // 숫자 포맷팅 함수
+  function formatNumber(value) {
+    if (value === null || value === undefined) return '-';
+    if (typeof value === 'number') {
+      if (Number.isInteger(value)) {
+        return value.toLocaleString();
+      } else {
+        // 소수점 2자리까지 표시하면서 천 단위 구분 적용
+        return value.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+    }
+    return value;
+  }
+
+  // 지표 레이블
+  const metricLabels = {
+    earnings: "수익",
+    clicks: "클릭 수",
+    impressions: "광고 요청 수",
+    order_count: "주문건수",
+    total_amount: "합산금액",
+    ctr: "CTR (%)",
+    ppc: "PPC (원)"
+  };
+
+  const metricYLabels = {
+    earnings: "수익 (₩)",
+    clicks: "클릭 수",
+    impressions: "광고 요청 수",
+    order_count: "주문건수",
+    total_amount: "합산금액 (₩)",
+    ctr: "CTR (%)",
+    ppc: "클릭당 단가 (₩)"
+  };
+
+  // 이벤트 리스너 설정
+  $("platformSelector").addEventListener("change", updateAccountSelector);
+  $("accountSelector").addEventListener("change", updateAdUnitSelector);
+  $("adUnitSelector").addEventListener("change", updateChart);
+  $("start_date").addEventListener("change", updateChart);
+  $("end_date").addEventListener("change", updateChart);
+  $("groupingSelector").addEventListener("change", updateChart);
+  $("metricSelector").addEventListener("change", updateChart);
+  $("chartTypeSelector").addEventListener("change", updateChart);
+
+  // 초기화
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(today.getDate() - 7);
+  $("start_date").value = weekAgo.toISOString().slice(0, 10);
+  $("end_date").value = today.toISOString().slice(0, 10);
+
+  updateAccountSelector();
+  initChart();
+  updateChart();
+
+  // 자동 수집 설정
+  fetch("/api/auto-fetch-days/")
+    .then(res => res.json())
+    .then(data => {
+      $("autoFetchDays").value = data.days || "0";
+    });
+
+  $("autoFetchDays").addEventListener("change", () => {
+    const days = $("autoFetchDays").value;
+    fetch("/api/save-auto-fetch-setting/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: `days=${days}`
+    });
+  });
+
+  // 플랫폼 선택에 따른 UI 업데이트
+  function updatePlatformUI() {
+    const platform = document.getElementById('dataCollectionPlatform').value;
+    const adpostUI = document.getElementById('adpostUploadUI');
+    const adpostFileUI = document.getElementById('adpostFileUploadUI');
+    const platformUI = document.getElementById('platformFetchUI');
+    
+    // 모든 UI 숨기기
+    adpostUI.classList.add('d-none');
+    adpostFileUI.classList.add('d-none');
+    platformUI.classList.add('d-none');
+    
+    // 플랫폼이 선택되지 않은 경우 종료
+    if (!platform) {
+      return;
+    }
+    
+    // 선택된 플랫폼에 따라 UI 표시
+    if (platform === 'adpost') {
+      adpostUI.classList.remove('d-none');
+    } else {
+      platformUI.classList.remove('d-none');
+    }
+  }
+
+  // 계정 선택 시 파일 업로드 UI 표시
+  document.getElementById('adpost_account').addEventListener('change', function() {
+    const adpostFileUI = document.getElementById('adpostFileUploadUI');
+    if (this.value) {
+      adpostFileUI.classList.remove('d-none');
+    } else {
+      adpostFileUI.classList.add('d-none');
+    }
+  });
+
+  // 페이지 로드 시 UI 초기화
+  document.addEventListener('DOMContentLoaded', function() {
+    updatePlatformUI();
+  });
+
+  // 플랫폼 선택 변경 시 UI 업데이트
+  document.getElementById('dataCollectionPlatform').addEventListener('change', updatePlatformUI);
+
+  // 데이터 수집 버튼 이벤트
+  document.getElementById('fetchDataBtn').addEventListener('click', async function() {
+    const platform = document.getElementById('dataCollectionPlatform').value;
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = "⏳ 수집 중...";
+    
+    try {
+      const response = await fetch(`/api/fetch/${platform}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify({
+          start_date: document.getElementById("start_date").value,
+          end_date: document.getElementById("end_date").value
+        })
+      });
+      const result = await response.json();
+      
+      if (result.results) {
+        const log = result.results.map(r =>
+          `• ${r.alias} → ${r.status === "success" ? "✅ 성공" : "❌ 실패 (" + r.message + ")"}`
+        ).join("\n");
+        alert(`${platform} 수집 결과:\n${log}`);
+      }
+    } catch (err) {
+      alert("❌ 오류: " + err.message);
+    }
+    
+    btn.disabled = false;
+    btn.textContent = "🔄 데이터 불러오기";
+    location.reload();
+  });
+
+  // Adpost 데이터 업로드 함수
+  async function uploadAdpostExcel() {
+    const accountSelect = document.getElementById('adpost_account');
+    const fileInput = document.getElementById('adpost_excel');
+    
+    if (!accountSelect.value) {
+      alert('계정을 선택해주세요.');
+      return;
+    }
+    
+    if (!fileInput.files.length) {
+      alert('파일을 선택해주세요.');
+      return;
+    }
+    
+    const file = fileInput.files[0];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(fileExt)) {
+      alert('지원하지 않는 파일 형식입니다. (지원: csv, xlsx, xls)');
+      return;
+    }
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('account_id', accountSelect.value);
+    
+    try {
+      const response = await fetch('/api/adpost/upload/', {
+        method: 'POST',
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
+        let message = result.message;
+        if (result.error_count > 0) {
+          message += '\n\n처리 실패한 데이터:';
+          result.errors.forEach(error => {
+            message += '\n' + error;
+          });
+        }
+        alert(message);
+        fileInput.value = ''; // 파일 입력 초기화
+        location.reload();
+      } else {
+        let errorMessage = result.error || '데이터 업로드 중 오류가 발생했습니다.';
+        if (result.details) {
+          errorMessage += '\n\n상세 오류:';
+          result.details.forEach(detail => {
+            errorMessage += '\n' + detail;
+          });
+        }
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('데이터 업로드 중 오류가 발생했습니다.');
+    }
+  }
+
+  // 엑셀 다운로드 함수
+  async function exportToExcel() {
+    try {
+      // 현재 선택된 필터 값 가져오기
+      const startDate = $("start_date").value;
+      const endDate = $("end_date").value;
+      const platform = $("platformSelector").value;
+      const alias = $("accountSelector").value;
+      const adUnitId = $("adUnitSelector").value;
+      const grouping = $("groupingSelector").value;
+
+      if (!startDate || !endDate) {
+        alert("시작일과 종료일을 선택해주세요.");
+        return;
+      }
+
+      // 엑셀용 데이터 가져오기
+      const response = await fetch(
+        `/api/stats/excel/?start_date=${startDate}&end_date=${endDate}&platform=${platform}&alias=${alias}&ad_unit_id=${adUnitId}&grouping=${grouping}`
+      );
+      
+      if (!response.ok) {
+        throw new Error('서버 응답 오류');
+      }
+
+      const data = await response.json();
+      if (!Array.isArray(data)) {
+        throw new Error('데이터 형식 오류');
+      }
+
+      // 워크북 생성
+      const wb = XLSX.utils.book_new();
+      
+      // 데이터 준비
+      const headers = ['날짜', '플랫폼', '계정', '광고 단위', '수익', '클릭 수', '광고 요청 수', '주문건수', '합산금액', 'CTR (%)', 'PPC'];
+      const excelData = [headers];
+
+      // 데이터 그룹핑
+      const groupedData = {};
+      data.forEach(stat => {
+        // 날짜 포맷팅
+        const date = new Date(stat.date);
+        const dateKey = grouping === "month" ? 
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}` : 
+          stat.date;
+        
+        // 그룹 키 생성
+        const groupKey = `${dateKey}|${stat.platform}|${stat.alias}|${stat.ad_unit}`;
+        
+        if (!groupedData[groupKey]) {
+          groupedData[groupKey] = {
+            date: dateKey,
+            platform: stat.platform || '',
+            alias: stat.alias || '',
+            ad_unit: stat.ad_unit || '',
+            earnings: 0,
+            clicks: 0,
+            impressions: 0,
+            order_count: 0,
+            total_amount: 0
+          };
+        }
+        
+        // 데이터 누적
+        groupedData[groupKey].earnings += parseFloat(stat.earnings || 0);
+        groupedData[groupKey].clicks += parseInt(stat.clicks || 0);
+        groupedData[groupKey].impressions += parseInt(stat.impressions || 0);
+        groupedData[groupKey].order_count += parseInt(stat.order_count || 0);
+        groupedData[groupKey].total_amount += parseFloat(stat.total_amount || 0);
+      });
+
+      // 그룹화된 데이터를 엑셀 데이터로 변환
+      Object.values(groupedData).forEach(stats => {
+        const ctr = stats.impressions > 0 ? (stats.clicks / stats.impressions * 100) : 0;
+        const ppc = stats.clicks > 0 ? stats.earnings / stats.clicks : 0;
+
+        excelData.push([
+          stats.date,
+          stats.platform,
+          stats.alias,
+          stats.ad_unit,
+          stats.earnings,
+          stats.clicks,
+          stats.impressions,
+          stats.order_count,
+          stats.total_amount,
+          ctr,
+          ppc
+        ]);
+      });
+
+      // 합계 계산
+      const totals = {
+        earnings: 0,
+        clicks: 0,
+        impressions: 0,
+        order_count: 0,
+        total_amount: 0
+      };
+
+      Object.values(groupedData).forEach(stats => {
+        totals.earnings += stats.earnings;
+        totals.clicks += stats.clicks;
+        totals.impressions += stats.impressions;
+        totals.order_count += stats.order_count;
+        totals.total_amount += stats.total_amount;
+      });
+
+      // 합계 행 추가
+      const totalCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions * 100) : 0;
+      const totalPpc = totals.clicks > 0 ? (totals.earnings / totals.clicks) : 0;
+
+      excelData.push([
+        '합계/평균',
+        '',
+        '',
+        '',
+        totals.earnings,
+        totals.clicks,
+        totals.impressions,
+        totals.order_count,
+        totals.total_amount,
+        totalCtr,
+        totalPpc
+      ]);
+
+      // 워크시트 생성
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+      // 열 너비 설정
+      const colWidths = [
+        { wch: 12 }, // 날짜
+        { wch: 10 }, // 플랫폼
+        { wch: 15 }, // 계정
+        { wch: 30 }, // 광고 단위
+        { wch: 12 }, // 수익
+        { wch: 10 }, // 클릭 수
+        { wch: 15 }, // 광고 요청 수
+        { wch: 15 }, // 주문건수
+        { wch: 15 }, // 합산금액
+        { wch: 10 }, // CTR
+        { wch: 12 }  // PPC
+      ];
+      ws['!cols'] = colWidths;
+
+      // 숫자 셀에 천 단위 구분 스타일 적용
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let row = 1; row <= range.e.r; row++) {
+        for (let col = 4; col <= 10; col++) {
+          const cell = XLSX.utils.encode_cell({ r: row, c: col });
+          if (ws[cell] && typeof ws[cell].v === 'number') {
+            ws[cell].t = 'n'; // 숫자 타입으로 설정
+            
+            // 컬럼별로 다른 숫자 포맷 적용
+            if (col === 4 || col === 8) { // 수익, 합산금액
+              ws[cell].z = '#,##0.00';
+            } else if (col === 5 || col === 6 || col === 7) { // 클릭 수, 광고 요청 수, 주문건수
+              ws[cell].z = '#,##0';
+            } else if (col === 9 || col === 10) { // CTR, PPC
+              ws[cell].z = '#,##0.00';
+            }
+          }
+        }
+      }
+
+      // 합계 행 스타일 설정
+      const lastRow = excelData.length;
+      range.e.r = lastRow - 1;
+      ws['!ref'] = XLSX.utils.encode_range(range);
+
+      // 합계 행에 굵은 글씨 스타일 적용
+      for (let col = 0; col < headers.length; col++) {
+        const cell = XLSX.utils.encode_cell({ r: lastRow - 1, c: col });
+        if (!ws[cell]) ws[cell] = { t: 's' };
+        ws[cell].s = { font: { bold: true } };
+      }
+
+      // 워크북에 워크시트 추가
+      XLSX.utils.book_append_sheet(wb, ws, "데이터");
+
+      // 파일 저장
+      const fileName = `광고통계_${startDate}_${endDate}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+
+    } catch (error) {
+      console.error("엑셀 다운로드 중 오류 발생:", error);
+      alert("엑셀 다운로드 중 오류가 발생했습니다: " + error.message);
+    }
+  }
+</script>
+
+<style>
+.table-responsive {
+  max-height: 800px;
+  overflow-y: auto;
+  position: relative;
+}
+
+.table th {
+  position: sticky;
+  top: 0;
+  background-color: #f8f9fa;
+  z-index: 1;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  padding-right: 20px;
+}
+
+.sortable:hover {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.sort-icon {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+@media (prefers-color-scheme: dark) {
+  .table {
+    color: #fff;
+  }
+  .table th {
+    background-color: #f8f9fa;
+    color: #000;
+  }
+  .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  .table-hover tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.075);
+  }
+  .sortable:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+#resetSortBtn, #exportExcelBtn {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  color: #000;
+  border-color: #6c757d;
+}
+
+#resetSortBtn:hover, #exportExcelBtn:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: #fff;
+}
+
+#exportExcelBtn {
+  background-color: #28a745;
+  border-color: #28a745;
+  color: #fff;
+}
+
+#exportExcelBtn:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  #resetSortBtn, #exportExcelBtn {
+    color: #000;
+    border-color: #6c757d;
+  }
+  
+  #resetSortBtn:hover, #exportExcelBtn:hover {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: #fff;
+  }
+
+  #exportExcelBtn {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: #fff;
+  }
+
+  #exportExcelBtn:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: #fff;
+  }
+}
+
+.form-select-sm {
+  height: calc(1.5em + 0.5rem + 2px);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.2rem;
+  background-color: #fff;
+  border-color: #ced4da;
+  color: #212529;
+}
+
+.form-control-sm {
+  height: calc(1.5em + 0.5rem + 2px);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.2rem;
+  background-color: #fff;
+  border-color: #ced4da;
+  color: #212529;
+}
+
+.form-select-sm:focus,
+.form-control-sm:focus {
+  background-color: #fff;
+  border-color: #86b7fe;
+  color: #212529;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-sm {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  border-radius: 0.2rem;
+  white-space: nowrap;
+}
+
+.d-none {
+  display: none !important;
+}
+
+.gap-2 {
+  gap: 0.5rem !important;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn-outline-success {
+    color: #28a745;
+    border-color: #28a745;
+    background-color: transparent;
+  }
+
+  .btn-outline-success:hover {
+    color: #fff;
+    background-color: #28a745;
+    border-color: #28a745;
+  }
+
+  .btn-primary {
+    color: #fff;
+    background-color: #007bff;
+    border-color: #007bff;
+  }
+
+  .btn-primary:hover {
+    color: #fff;
+    background-color: #0069d9;
+    border-color: #0062cc;
+  }
+}
+</style>
+
+{% endblock %}

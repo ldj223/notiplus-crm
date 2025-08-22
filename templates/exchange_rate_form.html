@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}{% if edit_mode %}환율 수정{% else %}환율 추가{% endif %}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title mb-0">
+            {% if edit_mode %}
+              <i class="bi bi-pencil-square me-2"></i>환율 수정
+            {% else %}
+              <i class="bi bi-plus-circle me-2"></i>환율 추가
+            {% endif %}
+          </h3>
+        </div>
+        <div class="card-body">
+          <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="year_month" class="form-label">적용년월 <span class="text-danger">*</span></label>
+              <input type="month" 
+                     class="form-control" 
+                     id="year_month" 
+                     name="year_month" 
+                     value="{% if edit_mode %}{{ exchange_rate.year_month|date:'Y-m' }}{% endif %}"
+                     required>
+              <div class="form-text">환율을 적용할 년월을 선택하세요.</div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="usd_to_krw" class="form-label">USD/KRW 환율 <span class="text-danger">*</span></label>
+              <div class="input-group">
+                <input type="number" 
+                       class="form-control" 
+                       id="usd_to_krw" 
+                       name="usd_to_krw" 
+                       step="0.01" 
+                       min="0"
+                       value="{% if edit_mode %}{{ exchange_rate.usd_to_krw }}{% endif %}"
+                       placeholder="1300.00"
+                       required>
+                <span class="input-group-text">KRW/USD</span>
+              </div>
+              <div class="form-text">1 USD = ? KRW (예: 1300.00)</div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'exchange_rate_list' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-2"></i>목록으로
+              </a>
+              <button type="submit" class="btn btn-primary">
+                {% if edit_mode %}
+                  <i class="bi bi-check-circle me-2"></i>수정
+                {% else %}
+                  <i class="bi bi-plus-circle me-2"></i>추가
+                {% endif %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

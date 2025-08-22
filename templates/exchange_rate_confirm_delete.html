@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}환율 삭제{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row justify-content-center">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title mb-0 text-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i>환율 삭제
+          </h3>
+        </div>
+        <div class="card-body">
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong>정말로 이 환율을 삭제하시겠습니까?</strong>
+          </div>
+          
+          <div class="mb-3">
+            <strong>적용년월:</strong> {{ exchange_rate.year_month|date:'Y년 m월' }}
+          </div>
+          <div class="mb-3">
+            <strong>USD/KRW 환율:</strong> {{ exchange_rate.usd_to_krw|floatformat:2 }} KRW/USD
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            이 환율을 삭제하면 해당 월의 애드센스 수익 계산에 기본 환율(1300 KRW/USD)이 사용됩니다.
+          </div>
+          
+          <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+              <a href="{% url 'exchange_rate_list' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left me-2"></i>취소
+              </a>
+              <button type="submit" class="btn btn-danger">
+                <i class="bi bi-trash me-2"></i>삭제
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

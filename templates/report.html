@@ -1,0 +1,772 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load custom_filters %}
+{% block title %}광고 리포트{% endblock %}
+{% block content %}
+{% csrf_token %}
+<style>
+  .table {
+    font-size: 0.75rem;
+    min-width: 1000px;
+  }
+  .table td, .table th {
+    white-space: nowrap;
+    padding: 0.25rem;
+    vertical-align: middle;
+    text-align: center;
+    min-width: 120px;
+  }
+  @media (max-width: 768px) {
+    .table-responsive {
+      font-size: 0.7rem;
+    }
+    .table td, .table th {
+      min-width: 120px;
+    }
+  }
+  [data-bs-theme="dark"] .table {
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .table-bordered {
+    border-color: #495057;
+  }
+  [data-bs-theme="dark"] .table-light {
+    background-color: #343a40;
+  }
+  [data-bs-theme="dark"] .table-light th {
+    background-color: #343a40;
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .bg-light {
+    background-color: #343a40 !important;
+    color: #e9ecef !important;
+  }
+  [data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+  }
+  .table thead th {
+      vertical-align: middle !important;
+      font-weight: 600;
+  }
+  .section-card {
+    background-color: #f8f9fa;
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  }
+  [data-bs-theme="dark"] .section-card {
+    background-color: #2c3034;
+    border-color: #495057;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.3);
+  }
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #495057;
+    display: flex;
+    align-items: center;
+  }
+  [data-bs-theme="dark"] .section-title {
+    color: #e9ecef;
+  }
+  .total-row {
+    background-color: #f8f9fa;
+    font-weight: bold;
+  }
+  [data-bs-theme="dark"] .total-row {
+    background-color: #2c3034;
+  }
+  .form-section {
+    background-color: #ffffff;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #dee2e6;
+  }
+  [data-bs-theme="dark"] .form-section {
+    background-color: #2c3034;
+    border-color: #495057;
+  }
+  .form-control-sm, .form-select-sm {
+    padding: 0.25rem 0.5rem;
+    min-height: auto;
+    font-size: 0.75rem;
+  }
+  .btn-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  .other-revenue-input {
+    width: 100px !important;
+    text-align: right !important;
+    padding: 0.25rem 0.5rem !important;
+    font-size: 0.75rem !important;
+    min-width: 100px !important;
+    max-width: 100px !important;
+  }
+</style>
+<div class="container-fluid">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0 fw-bold">광고 리포트</h2>
+  </div>
+
+  <!-- ===== 섹션 1: 기간 조회 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-calendar-alt me-2"></i>기간 조회
+    </div>
+    
+    <div class="form-section">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-md-4">
+          <label for="start_date" class="form-label">시작일</label>
+          <input type="date" class="form-control form-control-sm" id="start_date" name="start_date" value="{{ start_date|date:'Y-m-d' }}" required>
+        </div>
+        <div class="col-md-4">
+          <label for="end_date" class="form-label">종료일</label>
+          <input type="date" class="form-control form-control-sm" id="end_date" name="end_date" value="{{ end_date|date:'Y-m-d' }}" required>
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-primary btn-sm w-100">
+            <i class="fas fa-search"></i> 조회
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== 섹션 2: 퍼블리셔 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-user-tie me-2"></i>퍼블리셔
+    </div>
+    
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <h6 class="mb-0">일별 퍼블리셔 현황</h6>
+          <span class="text-muted small">단위: 원</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th>날짜</th>
+                <th>퍼블리셔 순이익</th>
+                <th>퍼블리셔 매출</th>
+                <th>구글</th>
+                <th>네이버</th>
+                <th>기타수익</th>
+                <th>퍼블리셔 매입비용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td class="fw-bold">{{ d|date:'Y-m-d' }}</td>
+                <td class="fw-bold text-primary">{{ publisher_daily_profit|get_item:d|floatformat:0|intcomma }}</td>
+                <td class="fw-bold text-info">{{ publisher_daily_sales|get_item:d|floatformat:0|intcomma }}</td>
+                <td>
+                  {% if publisher_daily_google|get_item:d %}
+                    {{ publisher_daily_google|get_item:d|floatformat:0|intcomma }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% if publisher_daily_naver|get_item:d %}
+                    {{ publisher_daily_naver|get_item:d|floatformat:0|intcomma }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  <input type="text" 
+                         class="form-control form-control-sm other-revenue-input formatted-input" 
+                         data-date="{{ d|date:'Y-m-d' }}" 
+                         data-section="publisher"
+                         value="{{ other_revenue_data|get_item:d|get_item:'publisher'|default:'0'|floatformat:0|intcomma }}" 
+                         onchange="saveOtherRevenue(this)"
+                         oninput="formatNumberInput(this)"
+                         onfocus="selectAllOnFocus(this)"
+                         onblur="formatOnBlur(this)"/>
+                </td>
+                <td class="text-danger">
+                  {{ other_revenue_data|get_item:d|get_item:'publisher_cost'|default:'0'|floatformat:0|intcomma }}
+                </td>
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td class="text-primary">{{ publisher_totals.publisher_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-info">{{ publisher_totals.publisher_sales|floatformat:0|intcomma }}</td>
+                <td>{{ publisher_totals.google_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ publisher_totals.naver_revenue|floatformat:0|intcomma }}</td>
+                <td id="publisher-other-revenue-total">{{ publisher_totals.other_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-danger" id="publisher-cost-total">{{ publisher_totals.publisher_cost|floatformat:0|intcomma }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 섹션 3: 파트너스 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-handshake me-2"></i>파트너스
+    </div>
+    
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <h6 class="mb-0">일별 파트너스 현황</h6>
+          <span class="text-muted small">단위: 원</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th>날짜</th>
+                <th>파트너스 순이익</th>
+                <th>파트너스 매출</th>
+                <th>파트너스 유효PV</th>
+                <th>유효PV당 매출</th>
+                <th>구글</th>
+                <th>네이버</th>
+                <th>코지마망</th>
+                <th>디온미디어</th>
+                <th>에이스플래닛</th>
+                <th>타불라</th>
+                <th>티즈</th>
+                <th>기타수익</th>
+                <th>파트너스 매입비용</th>
+                <th>파트너스 매입비용(유효PV)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td class="fw-bold">{{ d|date:'Y-m-d' }}</td>
+                <td class="fw-bold text-primary">{{ partners_daily_profit|get_item:d|floatformat:0|intcomma }}</td>
+                <td class="fw-bold text-info">{{ partners_daily_sales|get_item:d|floatformat:0|intcomma }}</td>
+                <td>{{ partners_valid_pv_data.daily|get_item:d|get_item:'valid_pageview'|default:'0'|floatformat:0|intcomma }}</td>
+                <td>{{ partners_valid_pv_data.daily|get_item:d|get_item:'revenue_per_pv'|default:'0'|floatformat:0|intcomma }}</td>
+                <td>
+                  {% if partners_daily_google|get_item:d %}
+                    {{ partners_daily_google|get_item:d|floatformat:0|intcomma }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% if partners_daily_naver|get_item:d %}
+                    {{ partners_daily_naver|get_item:d|floatformat:0|intcomma }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>{{ partners_daily_cozymamang|get_item:d|floatformat:0|intcomma }}</td>
+                <td>{{ partners_daily_mediamixer|get_item:d|floatformat:0|intcomma }}</td>
+                <td>{{ partners_daily_aceplanet|get_item:d|floatformat:0|intcomma }}</td>
+                <td>{{ partners_daily_taboola|get_item:d|floatformat:0|intcomma }}</td>
+                <td>{{ partners_daily_teads|get_item:d|floatformat:0|intcomma }}</td>
+                <td>
+                  <input type="text" 
+                         class="form-control form-control-sm other-revenue-input formatted-input" 
+                         data-date="{{ d|date:'Y-m-d' }}" 
+                         data-section="partners"
+                         value="{{ other_revenue_data|get_item:d|get_item:'partners'|default:'0'|floatformat:0|intcomma }}" 
+                         onchange="saveOtherRevenue(this)"
+                         oninput="formatNumberInput(this)"
+                         onfocus="selectAllOnFocus(this)"
+                         onblur="formatOnBlur(this)"/>
+                </td>
+                <td class="text-danger">
+                  {{ other_revenue_data|get_item:d|get_item:'partners_cost'|default:'0'|floatformat:0|intcomma }}
+                </td>
+                <td class="text-danger">{{ partners_valid_pv_data.daily|get_item:d|get_item:'valid_pageview'|default:'0'|multiply:5.0|floatformat:0|intcomma }}</td>
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td class="text-primary">{{ partners_totals.partners_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-info">{{ partners_totals.partners_sales|floatformat:0|intcomma }}</td>
+                <td>{{ partners_valid_pv_data.totals.valid_pageview|floatformat:0|intcomma }}</td>
+                <td>{{ partners_valid_pv_data.totals.revenue_per_pv|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.google_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.naver_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.cozymamang_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.mediamixer_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.aceplanet_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.taboola_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.teads_revenue|floatformat:0|intcomma }}</td>
+                <td id="partners-other-revenue-total">{{ partners_totals.other_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-danger" id="partners-cost-total">{{ partners_totals.partners_cost|floatformat:0|intcomma }}</td>
+                <td class="text-danger">{{ partners_valid_pv_data.totals.valid_pageview|multiply:5.0|floatformat:0|intcomma }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 섹션 4: 스탬플리 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-shopping-bag me-2"></i>스탬플리
+    </div>
+    
+    <div class="row g-3">
+      <div class="col-12">
+        <div class="d-flex justify-content-between align-items-end mb-2">
+          <h6 class="mb-0">일별 스탬플리 현황</h6>
+          <span class="text-muted small">단위: 원</span>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th>날짜</th>
+                <th>스탬플리 순이익</th>
+                <th>스탬플리 매출</th>
+                {% for p, a, display_name, key in stamply_platform_headers %}
+                <th>
+                  {{ display_name }}
+                </th>
+                {% endfor %}
+                <th>기타수익</th>
+                <th>스탬플리 매입비용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td class="fw-bold">{{ d|date:'Y-m-d' }}</td>
+                <td class="fw-bold text-primary">{{ stamply_daily_profit|get_item:d|floatformat:0|intcomma }}</td>
+                <td class="fw-bold text-info">{{ stamply_daily_sales|get_item:d|floatformat:0|intcomma }}</td>
+                {% for p, a, display_name, key in stamply_platform_headers %}
+                <td>{{ stamply_daily_coupang_by_account|get_item:d|get_item:a|default:'0'|floatformat:0|intcomma }}</td>
+                {% endfor %}
+                <td>
+                  <input type="text" 
+                         class="form-control form-control-sm other-revenue-input formatted-input" 
+                         data-date="{{ d|date:'Y-m-d' }}" 
+                         data-section="stamply"
+                         value="{{ other_revenue_data|get_item:d|get_item:'stamply'|default:'0'|floatformat:0|intcomma }}" 
+                         onchange="saveOtherRevenue(this)"
+                         oninput="formatNumberInput(this)"
+                         onfocus="selectAllOnFocus(this)"
+                         onblur="formatOnBlur(this)"/>
+                </td>
+                <td class="text-danger">
+                  <input type="text"
+                         class="form-control form-control-sm other-revenue-input formatted-input"
+                         data-date="{{ d|date:'Y-m-d' }}"
+                         data-section="stamply_cost"
+                         value="{{ other_revenue_data|get_item:d|get_item:'stamply_cost'|default:'0'|floatformat:0|intcomma }}"
+                         onchange="saveOtherRevenue(this)"
+                         oninput="formatNumberInput(this)"
+                         onfocus="selectAllOnFocus(this)"
+                         onblur="formatOnBlur(this)"/>
+                </td>
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td class="text-primary">{{ stamply_totals.stamply_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-info">{{ stamply_totals.stamply_sales|floatformat:0|intcomma }}</td>
+                {% for p, a, display_name, key in stamply_platform_headers %}
+                  <td>{{ stamply_coupang_account_totals|get_item:a|floatformat:0|intcomma }}</td>
+                {% endfor %}
+                <td id="stamply-other-revenue-total">{{ stamply_totals.other_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-danger" id="stamply-cost-total">{{ stamply_totals.stamply_cost|floatformat:0|intcomma }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 섹션 5: 세부 데이터 화면 ===== -->
+  <div class="section-card">
+    <div class="section-title">
+      <i class="fas fa-chart-line me-2"></i>세부 데이터 화면
+    </div>
+    
+    <!-- 1. 구글(애드센스+ADX) -->
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <h6 class="mb-2">1) 구글(애드센스+ADX)</h6>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th rowspan="2">날짜</th>
+                <th rowspan="2">총 수익</th>
+                <th colspan="2">애드센스</th>
+                {% if google_detail_admanager %}
+                <th colspan="{{ google_detail_admanager|length }}">ADX</th>
+                {% endif %}
+              </tr>
+              <tr>
+                <th>퍼블리셔</th>
+                <th>파트너스</th>
+                {% if google_detail_admanager %}
+                {% for ad_unit_name, data in google_detail_admanager.items %}
+                  <th>{{ ad_unit_name }}</th>
+                {% endfor %}
+                {% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td>{{ d|date:'Y-m-d' }}</td>
+                <td>
+                  {% set_var adx_daily_total = 0 %}
+                  {% if google_detail_admanager %}
+                  {% for ad_unit_name, data in google_detail_admanager.items %}
+                    {% set_var daily_val = data.daily|get_item:d|default:0 %}
+                    {% set_var adx_daily_total = adx_daily_total|add:daily_val %}
+                  {% endfor %}
+                  {% endif %}
+                  {% set_var adsense_pub_rev = google_detail_adsense.publisher.daily|get_item:d|default:0 %}
+                  {% set_var adsense_part_rev = google_detail_adsense.partners.daily|get_item:d|default:0 %}
+                  {% set_var temp_total = adsense_pub_rev|add:adsense_part_rev %}
+                  {{ temp_total|add:adx_daily_total|floatformat:0|intcomma }}
+                </td>
+                <td>{{ google_detail_adsense.publisher.daily|get_item:d|default:'-'|floatformat:0|intcomma }}</td>
+                <td>{{ google_detail_adsense.partners.daily|get_item:d|default:'-'|floatformat:0|intcomma }}</td>
+                {% if google_detail_admanager %}
+                {% for ad_unit_name, data in google_detail_admanager.items %}
+                  <td>{{ data.daily|get_item:d|default:'-'|floatformat:0|intcomma }}</td>
+                {% endfor %}
+                {% endif %}
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td>
+                  {% set_var adx_total = 0 %}
+                  {% if google_detail_admanager %}
+                  {% for ad_unit_name, data in google_detail_admanager.items %}
+                    {% set_var adx_total = adx_total|add:data.total %}
+                  {% endfor %}
+                  {% endif %}
+                  {% set_var adsense_total = google_detail_adsense.publisher.total|add:google_detail_adsense.partners.total %}
+                  {{ adsense_total|add:adx_total|floatformat:0|intcomma }}
+                </td>
+                <td>{{ google_detail_adsense.publisher.total|floatformat:0|intcomma }}</td>
+                <td>{{ google_detail_adsense.partners.total|floatformat:0|intcomma }}</td>
+                {% if google_detail_admanager %}
+                {% for ad_unit_name, data in google_detail_admanager.items %}
+                  <td>{{ data.total|floatformat:0|intcomma }}</td>
+                {% endfor %}
+                {% endif %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. 네이버 -->
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <h6 class="mb-2">2) 네이버</h6>
+        <!-- 2-1) 네이버 파워링크 -->
+        <div class="table-responsive mb-3">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th>날짜</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="퍼블리셔 수익 + 파트너스 수익">전체수익</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="PPC × 파워링크 퍼블리셔 클릭수 × 59.5% × 인정비율">퍼블리셔 수익</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="PPC × 파워링크 파트너스 클릭수 × 59.5% × 인정비율">파트너스 수익</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="뉴스픽 어드민에서 제공한 전체 파워링크 클릭수">전체 클릭수</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="인정비율 × PPC × 59.5%">Net CPC 단가</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="모바일뉴스픽_컨텐츠 매출 ÷ 모바일뉴스픽_컨텐츠 클릭수">PPC</th>
+                <th data-bs-toggle="tooltip" data-bs-placement="top" title="(모바일뉴스픽_컨텐츠 클릭수 ÷ 파워링크 전체 클릭수) × 100%">클릭인정비율</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td>{{ d|date:'Y-m-d' }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'total_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'publisher_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'partners_revenue'|default:'-'|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'admin_total_clicks'|default:'-'|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'net_cpc'|default:'-'|floatformat:2 }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'ppc'|default:'-'|floatformat:2 }}</td>
+                <td>{{ naver_powerlink_detail.daily|get_item:d|get_item:'recognition_rate'|default:'-'|floatformat:2 }}%</td>
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td>{{ naver_powerlink_detail.totals.total_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.totals.publisher_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.totals.partners_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.totals.admin_total_clicks|floatformat:0|intcomma }}</td>
+                <td>{{ naver_powerlink_detail.totals.net_cpc|floatformat:2 }}</td>
+                <td>{{ naver_powerlink_detail.totals.ppc|floatformat:2 }}</td>
+                <td>{{ naver_powerlink_detail.totals.recognition_rate|floatformat:2 }}%</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 2-2) 네이버 실적 보고서 현황 -->
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th rowspan="2">날짜</th>
+                {% for ad_unit, data in naver_performance_detail.items %}
+                  <th colspan="6">{{ ad_unit }}</th>
+                {% endfor %}
+              </tr>
+              <tr>
+                {% for ad_unit, data in naver_performance_detail.items %}
+                  <th>노출</th>
+                  <th>클릭</th>
+                  <th>CTR</th>
+                  <th>총 매출</th>
+                  <th>수익</th>
+                  <th>PPC</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td>{{ d|date:'Y-m-d' }}</td>
+                {% for ad_unit, data in naver_performance_detail.items %}
+                  {% set_var daily_data = data.daily|get_item:d %}
+                  <td>{{ daily_data.impressions|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data.clicks|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data.ctr|default:'-'|floatformat:2 }}%</td>
+                  <td>{{ daily_data.earnings|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data.total_revenue|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data.ppc|default:'-'|floatformat:0|intcomma }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                {% for ad_unit, data in naver_performance_detail.items %}
+                  {% with total_data=data.totals %}
+                    <td>{{ total_data.impressions|floatformat:0|intcomma }}</td>
+                    <td>{{ total_data.clicks|floatformat:0|intcomma }}</td>
+                    <td>{{ total_data.ctr|floatformat:2 }}%</td>
+                    <td>{{ total_data.earnings|floatformat:0|intcomma }}</td>
+                    <td>{{ total_data.total_revenue|floatformat:0|intcomma }}</td>
+                    <td>{{ total_data.ppc|floatformat:0|intcomma }}</td>
+                  {% endwith %}
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 코지마망 -->
+    <div class="row g-3">
+      <div class="col-12">
+        <h6 class="mb-2">3) 코지마망</h6>
+        <div class="table-responsive">
+          <table class="table table-bordered align-middle text-center" style="font-size: 0.75rem;">
+            <thead class="table-light">
+              <tr>
+                <th rowspan="2">날짜</th>
+                <th rowspan="2">총 수익</th>
+                {% for ad_unit, data in cozymamang_detail.items %}
+                  <th colspan="6">{{ ad_unit }}</th>
+                {% endfor %}
+              </tr>
+              <tr>
+                {% for ad_unit, data in cozymamang_detail.items %}
+                  <th>노출</th>
+                  <th>클릭</th>
+                  <th>최종 구매금액</th>
+                  <th>최종 구매수량</th>
+                  <th>최종 수익금</th>
+                  <th>클릭당 비용</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in date_list %}
+              <tr>
+                <td>{{ d|date:'Y-m-d' }}</td>
+                <td>{{ cozymamang_daily_totals|get_item:d|get_item:'earnings'|default:0|floatformat:0|intcomma }}</td>
+                {% for ad_unit, data in cozymamang_detail.items %}
+                  {% set_var daily_data = data.daily|get_item:d %}
+                  <td>{{ daily_data|get_item:'impressions'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data|get_item:'clicks'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data|get_item:'final_purchase_amount'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data|get_item:'final_purchase_quantity'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data|get_item:'earnings'|default:'-'|floatformat:0|intcomma }}</td>
+                  <td>{{ daily_data|get_item:'cpc'|default:'-'|floatformat:2 }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+              <tr class="total-row">
+                <td>합계</td>
+                <td>{{ cozymamang_grand_totals.earnings|floatformat:0|intcomma }}</td>
+                {% for ad_unit, data in cozymamang_detail.items %}
+                  <td>{{ data.totals.impressions|default:0|floatformat:0|intcomma }}</td>
+                  <td>{{ data.totals.clicks|default:0|floatformat:0|intcomma }}</td>
+                  <td>{{ data.totals.final_purchase_amount|default:0|floatformat:0|intcomma }}</td>
+                  <td>{{ data.totals.final_purchase_quantity|default:0|floatformat:0|intcomma }}</td>
+                  <td>{{ data.totals.earnings|default:0|floatformat:0|intcomma }}</td>
+                  <td>{{ data.totals.cpc|default:0|floatformat:2 }}</td>
+                {% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 숫자 포맷팅 함수들
+function formatNumberInput(input) {
+    // 숫자가 아닌 문자 제거 (컴마 제외)
+    let value = input.value.replace(/[^\d,]/g, '');
+    
+    // 컴마 제거 후 숫자만 추출
+    let numericValue = value.replace(/,/g, '');
+    
+    // 숫자가 아니면 빈 문자열로 설정
+    if (numericValue === '' || isNaN(numericValue)) {
+        input.value = '';
+        return;
+    }
+    
+    // 3자리마다 컴마 추가
+    if (numericValue !== '0') {
+        input.value = parseInt(numericValue).toLocaleString();
+    } else {
+        input.value = '0';
+    }
+}
+
+function selectAllOnFocus(input) {
+    // 포커스 시 전체 선택
+    input.select();
+}
+
+function formatOnBlur(input) {
+    // 포커스 아웃 시 숫자만 남기고 포맷팅
+    let value = input.value.replace(/[^\d]/g, '');
+    if (value === '') {
+        input.value = '0';
+    } else {
+        input.value = parseInt(value).toLocaleString();
+    }
+}
+
+// 기타수익 저장 함수 (전역 함수로 선언)
+function saveOtherRevenue(input) {
+    const date = input.getAttribute('data-date');
+    const section = input.getAttribute('data-section');
+    const amount = input.value.replace(/[^\d]/g, ''); // 숫자만 추출
+    
+    // 입력값 검증
+    if (amount === '' || isNaN(amount)) {
+        alert('올바른 숫자를 입력해주세요.');
+        input.focus();
+        return;
+    }
+    
+    // API 호출
+    fetch('{% url "save_other_revenue" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            date: date,
+            section: section,
+            amount: parseFloat(amount) || 0
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 성공 시 합계 업데이트
+            updateOtherRevenueTotal(section);
+            
+            // 성공 메시지 표시 (선택사항)
+            if (data.action === 'created') {
+                console.log('데이터가 저장되었습니다.');
+            } else if (data.action === 'updated') {
+                console.log('데이터가 수정되었습니다.');
+            } else if (data.action === 'deleted') {
+                console.log('데이터가 삭제되었습니다.');
+            }
+        } else {
+            alert('저장 중 오류가 발생했습니다: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('저장 중 오류가 발생했습니다.');
+    });
+}
+
+// 기타수익/매입비용 합계 업데이트 함수
+function updateOtherRevenueTotal(section) {
+    const inputs = document.querySelectorAll(`.other-revenue-input[data-section="${section}"]`);
+    let total = 0;
+    
+    inputs.forEach(input => {
+        // 컴마 제거 후 숫자 파싱
+        const value = parseFloat(input.value.replace(/[^\d]/g, '')) || 0;
+        total += value;
+    });
+    
+    // 합계 표시 업데이트
+    if (section.endsWith('_cost')) {
+        // 매입비용 합계 업데이트
+        const costTotalElement = document.getElementById(`${section.replace('_cost', '')}-cost-total`);
+        if (costTotalElement) {
+            costTotalElement.textContent = total.toLocaleString();
+        }
+    } else {
+        // 기타수익 합계 업데이트
+        const totalElement = document.getElementById(`${section}-other-revenue-total`);
+        if (totalElement) {
+            totalElement.textContent = total.toLocaleString();
+        }
+    }
+}
+
+// 페이지 로드 시 각 섹션별 합계 계산
+document.addEventListener('DOMContentLoaded', function() {
+    const sections = ['publisher', 'partners', 'stamply', 'stamply_cost'];
+    sections.forEach(section => {
+        updateOtherRevenueTotal(section);
+    });
+    
+    // Bootstrap 툴팁 활성화
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %} 

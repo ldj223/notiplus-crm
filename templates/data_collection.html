@@ -1,0 +1,742 @@
+{% extends 'base.html' %}
+{% load custom_filters %}
+{% block title %}데이터 수집 관리{% endblock %}
+{% block content %}
+<style>
+  .table {
+    font-size: 0.9rem;
+  }
+  .table td, .table th {
+    white-space: nowrap;
+  }
+  @media (max-width: 768px) {
+    .table-responsive {
+      font-size: 0.85rem;
+    }
+    .table thead th {
+      white-space: nowrap;
+    }
+    .table td, .table th {
+      min-width: 140px;
+    }
+  }
+  [data-bs-theme="dark"] .table {
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .table-bordered {
+    border-color: #495057;
+  }
+  [data-bs-theme="dark"] .table-light {
+    background-color: #343a40;
+  }
+  [data-bs-theme="dark"] .table-light th {
+    background-color: #343a40;
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .bg-light {
+    background-color: #343a40 !important;
+    color: #e9ecef !important;
+  }
+  [data-bs-theme="dark"] .text-muted {
+    color: #adb5bd !important;
+  }
+  .table thead th {
+    vertical-align: middle !important;
+    padding: 0.5rem;
+  }
+  .main-card {
+    background-color: #f8f9fa;
+    padding: 1.2rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    border: 1px solid #e9ecef;
+  }
+  [data-bs-theme="dark"] .main-card {
+    background-color: #343a40;
+    border-color: #495057;
+  }
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+    padding-bottom: 0.5rem;
+  }
+  [data-bs-theme="dark"] .section-title {
+    color: #e9ecef;
+    border-bottom-color: #495057;
+  }
+  .form-label {
+    font-weight: 500;
+    color: #495057;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+  [data-bs-theme="dark"] .form-label {
+    color: #e9ecef;
+  }
+  .card {
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  }
+  [data-bs-theme="dark"] .card {
+    background-color: #2b3035;
+    border-color: #495057;
+  }
+  .card-title {
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+  [data-bs-theme="dark"] .card-title {
+    color: #e9ecef;
+  }
+  .btn {
+    border-radius: 0.375rem;
+    font-weight: 500;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.9rem;
+  }
+  .btn-success {
+    background-color: #198754;
+    border-color: #198754;
+  }
+  .btn-success:hover {
+    background-color: #157347;
+    border-color: #157347;
+  }
+  .btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
+  .btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0b5ed7;
+  }
+  .btn-outline-info {
+    color: #0dcaf0;
+    border-color: #0dcaf0;
+  }
+  .btn-outline-info:hover {
+    background-color: #0dcaf0;
+    border-color: #0dcaf0;
+    color: #fff;
+  }
+  .form-control, .form-select {
+    border-radius: 0.375rem;
+    border: 1px solid #ced4da;
+    font-size: 0.9rem;
+    padding: 0.4rem 0.75rem;
+  }
+  .form-control:focus, .form-select:focus {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  }
+  [data-bs-theme="dark"] .form-control,
+  [data-bs-theme="dark"] .form-select {
+    background-color: #2b3035;
+    border-color: #495057;
+    color: #e9ecef;
+  }
+  [data-bs-theme="dark"] .form-control:focus,
+  [data-bs-theme="dark"] .form-select:focus {
+    background-color: #2b3035;
+    border-color: #86b7fe;
+    color: #e9ecef;
+  }
+  .gap-2 {
+    gap: 0.5rem !important;
+  }
+  .d-none {
+    display: none !important;
+  }
+</style>
+<div class="container-fluid">
+  <h2 class="mb-4 fw-bold">데이터 수집 관리</h2>
+  
+  <!-- 자동 수집 주기 설정 -->
+  <div class="main-card mb-3">
+    <div class="section-title">자동 수집 설정</div>
+    <div class="row">
+      <div class="col-md-4">
+        <label class="form-label">자동 수집 주기</label>
+        <select id="autoFetchDays" class="form-select">
+          <option value="0">사용 안 함</option>
+          <option value="1">매일</option>
+          <option value="3">3일마다</option>
+          <option value="7">7일마다</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- 수동 데이터 수집 -->
+  <div class="main-card">
+    <div class="section-title">수동 데이터 수집</div>
+    <form id="dataCollectionForm">
+      <!-- 기간 설정 -->
+      <div class="row g-3 mb-3">
+        <div class="col-md-3">
+          <label class="form-label">시작일</label>
+          <input type="date" id="start_date" class="form-control" value="{{ week_ago|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">종료일</label>
+          <input type="date" id="end_date" class="form-control" value="{{ today|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">플랫폼 선택</label>
+          <select id="dataCollectionPlatform" class="form-select">
+            <option value="">플랫폼 선택 - 마지막 수집 시간</option>
+            {% for platform in platform_aliases_grouped.keys %}
+              <option value="{{ platform }}">
+                {{ display_name|get_item:platform }} - 
+                {% if platform == 'adpost' or platform == 'taboola' %}
+                  계정별 확인
+                {% elif last_fetched_times|get_item:platform %}
+                  {{ last_fetched_times|get_item:platform|date:"Y-m-d H:i:s" }}
+                {% else %}
+                  수집 이력 없음
+                {% endif %}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <!-- 플랫폼별 설정 -->
+      <div class="row g-3">
+        <!-- Adpost 설정 -->
+        <div class="col-md-6" id="adpostUploadUI" class="d-none">
+          <div class="card border-light">
+            <div class="card-body">
+              <h6 class="card-title mb-3">📊 Adpost 설정</h6>
+              <div class="mb-3">
+                <label class="form-label">계정 선택</label>
+                <select id="adpost_account" class="form-select">
+                  <option value="">계정 선택</option>
+                  {% for alias in platform_aliases_grouped.adpost %}
+                    <option value="{{ alias }}">
+                      {{ alias }} - 
+                      {% if last_fetched_times|get_item:alias %}
+                        {{ last_fetched_times|get_item:alias|date:"Y-m-d H:i:s" }}
+                      {% else %}
+                        데이터 없음
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div id="adpostFileUploadUI" class="d-none">
+                <label class="form-label">파일 업로드</label>
+                <div class="d-flex gap-2">
+                  <input type="file" id="adpost_excel" accept=".csv,.xlsx,.xls" class="form-control">
+                  <button type="button" onclick="uploadAdpostExcel()" class="btn btn-primary" style="min-width: 60px; white-space: nowrap;">등록</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Taboola 설정 -->
+        <div class="col-md-6" id="taboolaUploadUI" class="d-none">
+          <div class="card border-light">
+            <div class="card-body">
+              <h6 class="card-title mb-3">📊 Taboola 설정</h6>
+              <div class="mb-3">
+                <label class="form-label">계정 선택</label>
+                <select id="taboola_account" class="form-select">
+                  <option value="">계정 선택</option>
+                  {% for alias in platform_aliases_grouped.taboola %}
+                    <option value="{{ alias }}">
+                      {{ alias }} - 
+                      {% if last_fetched_times|get_item:alias %}
+                        {{ last_fetched_times|get_item:alias|date:"Y-m-d H:i:s" }}
+                      {% else %}
+                        데이터 없음
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div id="taboolaFileUploadUI" class="d-none">
+                <label class="form-label">파일 업로드</label>
+                <div class="d-flex gap-2">
+                  <input type="file" id="taboola_excel" accept=".csv,.xlsx,.xls" class="form-control">
+                  <button type="button" onclick="uploadTaboolaExcel()" class="btn btn-primary" style="min-width: 60px; white-space: nowrap;">등록</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AdManager 설정 -->
+        <div class="col-md-6" id="admanagerReportUI" class="d-none">
+          <div class="card border-light">
+            <div class="card-body">
+              <h6 class="card-title mb-3">📈 AdManager 설정</h6>
+              <div class="mb-3">
+                <label class="form-label">계정 선택</label>
+                <select id="admanager_account" class="form-select">
+                  <option value="">계정 선택</option>
+                  {% for alias in platform_aliases_grouped.admanager %}
+                    <option value="{{ alias }}">
+                      {{ alias }} - 
+                      {% if last_fetched_times|get_item:alias %}
+                        {{ last_fetched_times|get_item:alias|date:"Y-m-d H:i:s" }}
+                      {% else %}
+                        데이터 없음
+                      {% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="mb-3">
+                <button id="loadReportsBtn" class="btn btn-outline-info w-100 mb-2" style="display: none;">
+                  📊 보고서 목록 불러오기
+                </button>
+                <select id="admanager_report" class="form-select" style="display: none;">
+                  <option value="">보고서 선택</option>
+                </select>
+              </div>
+              <button id="fetchAdmanagerDataBtn" class="btn btn-success w-100" style="display: none;">
+                🔄 AdManager 데이터 수집
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 일반 플랫폼 설정 -->
+        <div class="col-md-6" id="platformFetchUI" class="d-none">
+          <div class="card border-light">
+            <div class="card-body">
+              <h6 class="card-title mb-3">📊 데이터 수집</h6>
+              <button id="fetchDataBtn" class="btn btn-success w-100">
+                🔄 데이터 불러오기
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+  <div class="section-title mt-4 mb-2">수집 이력</div>
+  <div class="table-responsive">
+    <table class="table table-bordered align-middle text-center">
+      <thead class="table-light">
+        <tr>
+          <th>플랫폼</th>
+          <th>계정</th>
+          <th>마지막 수집 시간</th>
+          <th>상태</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for platform in platform_aliases_grouped.keys %}
+          {% if platform == 'adpost' or platform == 'taboola' %}
+            {% for alias in platform_aliases_grouped|get_item:platform %}
+              <tr>
+                <td>{{ display_name|get_item:platform }}</td>
+                <td>{{ alias }}</td>
+                <td>
+                  {% if last_fetched_times|get_item:alias %}
+                    {{ last_fetched_times|get_item:alias|date:"Y-m-d H:i:s" }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td>
+                  {% if last_fetched_times|get_item:alias %}
+                    <span class="badge bg-success">정상</span>
+                  {% else %}
+                    <span class="badge bg-warning">미수집</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td>{{ display_name|get_item:platform }}</td>
+              <td>-</td>
+              <td>
+                {% if last_fetched_times|get_item:platform %}
+                  {{ last_fetched_times|get_item:platform|date:"Y-m-d H:i:s" }}
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td>
+                {% if last_fetched_times|get_item:platform %}
+                  <span class="badge bg-success">정상</span>
+                {% else %}
+                  <span class="badge bg-warning">미수집</span>
+                {% endif %}
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  fetch("/api/auto-fetch-days/")
+    .then(res => res.json())
+    .then(data => {
+      $("autoFetchDays").value = data.days || "0";
+    });
+  $("autoFetchDays").addEventListener("change", () => {
+    const days = $("autoFetchDays").value;
+    fetch("/api/save-auto-fetch-setting/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-CSRFToken": getCookie("csrftoken"),
+      },
+      body: `days=${days}`
+    });
+  });
+  function updatePlatformUI() {
+    const platform = document.getElementById('dataCollectionPlatform').value;
+    const adpostUI = document.getElementById('adpostUploadUI');
+    const adpostFileUI = document.getElementById('adpostFileUploadUI');
+    const taboolaUI = document.getElementById('taboolaUploadUI');
+    const taboolaFileUI = document.getElementById('taboolaFileUploadUI');
+    const admanagerUI = document.getElementById('admanagerReportUI');
+    const platformUI = document.getElementById('platformFetchUI');
+    adpostUI.classList.add('d-none');
+    adpostFileUI.classList.add('d-none');
+    taboolaUI.classList.add('d-none');
+    taboolaFileUI.classList.add('d-none');
+    admanagerUI.classList.add('d-none');
+    platformUI.classList.add('d-none');
+    if (!platform) {
+      return;
+    }
+    if (platform === 'adpost') {
+      adpostUI.classList.remove('d-none');
+    } else if (platform === 'taboola') {
+      taboolaUI.classList.remove('d-none');
+    } else if (platform === 'admanager') {
+      admanagerUI.classList.remove('d-none');
+    } else {
+      platformUI.classList.remove('d-none');
+    }
+  }
+  document.getElementById('adpost_account').addEventListener('change', function() {
+    const adpostFileUI = document.getElementById('adpostFileUploadUI');
+    if (this.value) {
+      adpostFileUI.classList.remove('d-none');
+    } else {
+      adpostFileUI.classList.add('d-none');
+    }
+  });
+  document.getElementById('taboola_account').addEventListener('change', function() {
+    const taboolaFileUI = document.getElementById('taboolaFileUploadUI');
+    if (this.value) {
+      taboolaFileUI.classList.remove('d-none');
+    } else {
+      taboolaFileUI.classList.add('d-none');
+    }
+  });
+  document.getElementById('admanager_account').addEventListener('change', async function() {
+    const loadReportsBtn = document.getElementById('loadReportsBtn');
+    const reportSelect = document.getElementById('admanager_report');
+    const fetchAdmanagerDataBtn = document.getElementById('fetchAdmanagerDataBtn');
+    
+    if (this.value) {
+      // 계정 선택 시 자동으로 보고서 목록 불러오기
+      loadReportsBtn.style.display = 'none';
+      reportSelect.style.display = 'none';
+      fetchAdmanagerDataBtn.style.display = 'none';
+      
+      // 로딩 상태 표시
+      reportSelect.innerHTML = '<option value="">⏳ 보고서 목록 불러오는 중...</option>';
+      reportSelect.style.display = 'block';
+      
+      try {
+        const response = await fetch(`/api/admanager/reports/?alias=${encodeURIComponent(this.value)}`, {
+          method: "GET",
+          headers: {
+            "X-CSRFToken": getCookie("csrftoken")
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.status === "success") {
+          reportSelect.innerHTML = '<option value="">보고서 선택</option>';
+          result.reports.forEach(report => {
+            const option = document.createElement('option');
+            option.value = report.id;
+            option.textContent = `${report.name} (${report.status})`;
+            reportSelect.appendChild(option);
+          });
+        } else {
+          reportSelect.innerHTML = '<option value="">❌ 보고서 목록 불러오기 실패</option>';
+          alert('보고서 목록을 불러오는데 실패했습니다: ' + result.message);
+        }
+      } catch (error) {
+        reportSelect.innerHTML = '<option value="">❌ 보고서 목록 불러오기 실패</option>';
+        alert('보고서 목록을 불러오는데 실패했습니다: ' + error.message);
+      }
+    } else {
+      loadReportsBtn.style.display = 'none';
+      reportSelect.style.display = 'none';
+      fetchAdmanagerDataBtn.style.display = 'none';
+    }
+  });
+  document.getElementById('admanager_report').addEventListener('change', function() {
+    const fetchAdmanagerDataBtn = document.getElementById('fetchAdmanagerDataBtn');
+    if (this.value) {
+      fetchAdmanagerDataBtn.style.display = 'block';
+    } else {
+      fetchAdmanagerDataBtn.style.display = 'none';
+    }
+  });
+  document.addEventListener('DOMContentLoaded', function() {
+    updatePlatformUI();
+  });
+  document.getElementById('dataCollectionPlatform').addEventListener('change', updatePlatformUI);
+  document.getElementById('fetchDataBtn').addEventListener('click', async function() {
+    const platform = document.getElementById('dataCollectionPlatform').value;
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = "⏳ 수집 중...";
+    try {
+      const startDate = document.getElementById("start_date").value;
+      const endDate = document.getElementById("end_date").value;
+      if (!startDate || !endDate) {
+        alert("시작일과 종료일을 선택해주세요.");
+        btn.disabled = false;
+        btn.textContent = "🔄 데이터 불러오기";
+        return;
+      }
+
+      let requestBody = {
+        start_date: startDate,
+        end_date: endDate
+      };
+
+      // AdManager의 경우 보고서 ID 추가
+      if (platform === 'admanager') {
+        const reportSelect = document.getElementById('admanager_report');
+        if (reportSelect.value) {
+          requestBody.report_id = reportSelect.value;
+        }
+      }
+
+      const response = await fetch(`/api/fetch/${platform}/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify(requestBody)
+      });
+      const result = await response.json();
+      if (result.results) {
+        const log = result.results.map(r =>
+          `• ${r.alias} → ${r.status === "success" ? "✅ 성공" : "❌ 실패 (" + r.message + ")"}`
+        ).join("\n");
+        alert(`${platform} 수집 결과:\n${log}`);
+      }
+    } catch (err) {
+      alert("❌ 오류: " + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = "🔄 데이터 불러오기";
+    location.reload();
+  });
+  async function uploadAdpostExcel() {
+    const accountSelect = document.getElementById('adpost_account');
+    const fileInput = document.getElementById('adpost_excel');
+    if (!accountSelect.value) {
+      alert('계정을 선택해주세요.');
+      return;
+    }
+    if (!fileInput.files.length) {
+      alert('파일을 선택해주세요.');
+      return;
+    }
+    const file = fileInput.files[0];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(fileExt)) {
+      alert('지원하지 않는 파일 형식입니다. (지원: csv, xlsx, xls)');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('account_id', accountSelect.value);
+    try {
+      const response = await fetch('/api/adpost/upload/', {
+        method: 'POST',
+        body: formData
+      });
+      const result = await response.json();
+      if (response.ok) {
+        let message = result.message;
+        if (result.error_count > 0) {
+          message += '\n\n처리 실패한 데이터:';
+          result.errors.forEach(error => {
+            message += '\n' + error;
+          });
+          alert(message);
+          // 실패가 있으면 새로고침하지 않음
+        } else {
+          alert(message);
+          fileInput.value = '';
+          location.reload();
+        }
+      } else {
+        let errorMessage = result.error || '데이터 업로드 중 오류가 발생했습니다.';
+        if (result.details) {
+          errorMessage += '\n\n상세 오류:';
+          result.details.forEach(detail => {
+            errorMessage += '\n' + detail;
+          });
+        }
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('데이터 업로드 중 오류가 발생했습니다.');
+    }
+  }
+  async function uploadTaboolaExcel() {
+    const accountSelect = document.getElementById('taboola_account');
+    const fileInput = document.getElementById('taboola_excel');
+    if (!accountSelect.value) {
+      alert('계정을 선택해주세요.');
+      return;
+    }
+    if (!fileInput.files.length) {
+      alert('파일을 선택해주세요.');
+      return;
+    }
+    const file = fileInput.files[0];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+    if (!['csv', 'xlsx', 'xls'].includes(fileExt)) {
+      alert('지원하지 않는 파일 형식입니다. (지원: csv, xlsx, xls)');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('account_id', accountSelect.value);
+    try {
+      console.log('Taboola 파일 업로드 시작:', file.name, '계정:', accountSelect.value);
+      const response = await fetch('/api/taboola/upload/', {
+        method: 'POST',
+        body: formData
+      });
+      console.log('Taboola 응답 상태:', response.status, response.statusText);
+      const result = await response.json();
+      console.log('Taboola 응답 내용:', result);
+      if (response.ok) {
+        let message = result.message;
+        if (result.error_count > 0) {
+          message += '\n\n처리 실패한 데이터:';
+          result.errors.forEach(error => {
+            message += '\n' + error;
+          });
+          alert(message);
+          // 실패가 있으면 새로고침하지 않음
+        } else {
+          alert(message);
+          fileInput.value = '';
+          location.reload();
+        }
+      } else {
+        let errorMessage = result.error || '데이터 업로드 중 오류가 발생했습니다.';
+        if (result.details) {
+          errorMessage += '\n\n상세 오류:';
+          result.details.forEach(detail => {
+            errorMessage += '\n' + detail;
+          });
+        }
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error('Taboola 업로드 오류:', error);
+      alert('데이터 업로드 중 오류가 발생했습니다.');
+    }
+  }
+  document.getElementById('fetchAdmanagerDataBtn').addEventListener('click', async function() {
+    const accountSelect = document.getElementById('admanager_account');
+    const reportSelect = document.getElementById('admanager_report');
+    const btn = this;
+    
+    if (!accountSelect.value) {
+      alert('계정을 선택해주세요.');
+      return;
+    }
+    
+    if (!reportSelect.value) {
+      alert('보고서를 선택해주세요.');
+      return;
+    }
+    
+    btn.disabled = true;
+    btn.textContent = "⏳ 수집 중...";
+    
+    try {
+      const startDate = document.getElementById("start_date").value;
+      const endDate = document.getElementById("end_date").value;
+      if (!startDate || !endDate) {
+        alert("시작일과 종료일을 선택해주세요.");
+        btn.disabled = false;
+        btn.textContent = "🔄 AdManager 데이터 수집";
+        return;
+      }
+
+      const requestBody = {
+        start_date: startDate,
+        end_date: endDate,
+        report_id: reportSelect.value
+      };
+
+      const response = await fetch(`/api/fetch/admanager/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": getCookie("csrftoken")
+        },
+        body: JSON.stringify(requestBody)
+      });
+      
+      const result = await response.json();
+      if (result.results) {
+        const log = result.results.map(r =>
+          `• ${r.alias} → ${r.status === "success" ? "✅ 성공" : "❌ 실패 (" + r.message + ")"}`
+        ).join("\n");
+        alert(`AdManager 수집 결과:\n${log}`);
+      } else {
+        alert('데이터 수집 중 오류가 발생했습니다: ' + (result.message || '알 수 없는 오류'));
+      }
+    } catch (err) {
+      alert("❌ 오류: " + err.message);
+    }
+    
+    btn.disabled = false;
+    btn.textContent = "🔄 AdManager 데이터 수집";
+    location.reload();
+  });
+</script>
+{% endblock %} 

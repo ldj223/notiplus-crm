@@ -1,0 +1,168 @@
+{% extends "popup_base.html" %}
+
+{% block title %}정산주관부서 관리{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">정산주관부서 관리</h5>
+                <button type="button" class="btn btn-primary btn-sm" onclick="openCreateForm()">
+                    <i class="fas fa-plus"></i> 부서 추가
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>부서명</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="departmentTableBody">
+                            {% for department in departments %}
+                            <tr data-id="{{ department.id }}">
+                                <td>{{ department.name }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="openEditForm({{ department.id }}, '{{ department.name }}')">
+                                        <i class="fas fa-edit"></i> 수정
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteDepartment({{ department.id }}, '{{ department.name }}')">
+                                        <i class="fas fa-trash"></i> 삭제
+                                    </button>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="2" class="text-center">등록된 부서가 없습니다.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 부서 추가/수정 모달 -->
+<div class="modal fade" id="departmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">부서 추가</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="departmentForm">
+                    <div class="mb-3">
+                        <label for="departmentName" class="form-label">부서명</label>
+                        <input type="text" class="form-control" id="departmentName" name="name" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" onclick="saveDepartment()">저장</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF 토큰 -->
+{% csrf_token %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Django 템플릿 변수를 JavaScript 변수로 정의
+const CREATE_URL = '{% url "settlement_department_create" %}';
+
+let currentMode = 'create';
+let currentId = null;
+
+function openCreateForm() {
+    currentMode = 'create';
+    currentId = null;
+    document.getElementById('modalTitle').textContent = '부서 추가';
+    document.getElementById('departmentName').value = '';
+    document.getElementById('departmentForm').reset();
+    
+    const modal = new bootstrap.Modal(document.getElementById('departmentModal'));
+    modal.show();
+}
+
+function openEditForm(id, name) {
+    currentMode = 'edit';
+    currentId = id;
+    document.getElementById('modalTitle').textContent = '부서 수정';
+    document.getElementById('departmentName').value = name;
+    
+    const modal = new bootstrap.Modal(document.getElementById('departmentModal'));
+    modal.show();
+}
+
+function saveDepartment() {
+    const name = document.getElementById('departmentName').value.trim();
+    if (!name) {
+        alert('부서명을 입력해주세요.');
+        return;
+    }
+    
+    const url = currentMode === 'create' 
+        ? CREATE_URL
+        : '/settlement-departments/' + currentId + '/edit/';
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: 'name=' + encodeURIComponent(name)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('오류가 발생했습니다.');
+    });
+}
+
+function deleteDepartment(id, name) {
+    if (!confirm('"' + name + '" 부서를 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    fetch('/settlement-departments/' + id + '/delete/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('오류가 발생했습니다.');
+    });
+}
+</script>
+{% endblock %} 
