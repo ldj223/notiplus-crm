@@ -533,20 +533,20 @@ def calculate_daily_platform_revenue(date_list, publisher_google_naver_data, par
     }
     
     for d in date_list:
-        # 퍼블리셔 일일 수익
-        daily_data['publisher_daily_google'][d] = publisher_google_naver_data[d]['adsense'] + publisher_google_naver_data[d]['admanager']
+        # 퍼블리셔 일일 수익 (main.py와 동일하게 int 변환)
+        daily_data['publisher_daily_google'][d] = int(publisher_google_naver_data[d]['adsense'] + publisher_google_naver_data[d]['admanager'])
         
-        # 파트너스 일일 수익
-        daily_data['partners_daily_google'][d] = partners_google_naver_data[d]['adsense'] + partners_google_naver_data[d]['admanager']
+        # 파트너스 일일 수익 (main.py와 동일하게 int 변환)
+        daily_data['partners_daily_google'][d] = int(partners_google_naver_data[d]['adsense'] + partners_google_naver_data[d]['admanager'])
         
-        # 네이버 수익 - 네이버 세부 데이터의 결과값 사용
+        # 네이버 수익 - 네이버 세부 데이터의 결과값 사용 (main.py와 동일하게 int 변환)
         if naver_powerlink_detail and d in naver_powerlink_detail['daily']:
-            daily_data['publisher_daily_naver'][d] = naver_powerlink_detail['daily'][d]['publisher_revenue']
-            daily_data['partners_daily_naver'][d] = naver_powerlink_detail['daily'][d]['partners_revenue']
+            daily_data['publisher_daily_naver'][d] = int(naver_powerlink_detail['daily'][d]['publisher_revenue'])
+            daily_data['partners_daily_naver'][d] = int(naver_powerlink_detail['daily'][d]['partners_revenue'])
         else:
-            # 네이버 세부 데이터가 없으면 기존 방식 사용
-            daily_data['publisher_daily_naver'][d] = publisher_google_naver_data[d]['naver']
-            daily_data['partners_daily_naver'][d] = partners_google_naver_data[d]['naver']
+            # 네이버 세부 데이터가 없으면 기존 방식 사용 (main.py와 동일하게 int 변환)
+            daily_data['publisher_daily_naver'][d] = int(publisher_google_naver_data[d]['naver'])
+            daily_data['partners_daily_naver'][d] = int(partners_google_naver_data[d]['naver'])
         
         # 파트너스 개별 플랫폼 수익 - AdStats에서 직접 계산
         platform_revenues = {
@@ -643,7 +643,10 @@ def get_platform_headers(platforms, section_name=None):
 
 def build_report_context(date_list, platform_headers, section_results, daily_data, 
                          stamply_coupang_account_totals, start_date, end_date,
-                         publisher_google_naver_data, partners_google_naver_data, data, publisher_revenue):
+                         publisher_google_naver_data, partners_google_naver_data, data, 
+                         publisher_revenue, partners_revenue, stamply_revenue,
+                         publisher_profit, partners_profit, stamply_profit,
+                         total_revenue, total_profit, purchase_data, other_revenue_data):
     """리포트 컨텍스트를 구성하는 헬퍼 함수"""
     section_headers = {
         'publisher': get_platform_headers(section_results['publisher']['platforms'], 'publisher'),
@@ -662,16 +665,57 @@ def build_report_context(date_list, platform_headers, section_results, daily_dat
         'partners_data': section_results['partners']['data'],
         'stamply_data': section_results['stamply']['data'],
         'publisher_revenue': publisher_revenue,
-        'publisher_daily_profit': section_results['publisher']['daily_profit'],
-        'publisher_daily_sales': section_results['publisher']['daily_sales'],
-        'partners_daily_profit': section_results['partners']['daily_profit'],
-        'partners_daily_sales': section_results['partners']['daily_sales'],
-        'stamply_daily_profit': section_results['stamply']['daily_profit'],
-        'stamply_daily_sales': section_results['stamply']['daily_sales'],
-        'publisher_totals': section_results['publisher']['totals'],
-        'partners_totals': section_results['partners']['totals'],
-        'stamply_totals': section_results['stamply']['totals'],
+        'publisher_daily_profit': publisher_profit,  # 매출 - 매입비용
+        'publisher_daily_sales': publisher_revenue,  # 매출
+        'partners_daily_profit': partners_profit,    # 매출 - 매입비용
+        'partners_daily_sales': partners_revenue,    # 매출
+        'stamply_daily_profit': stamply_profit,     # 매출 - 매입비용
+        'stamply_daily_sales': stamply_revenue,     # 매출
+        # 올바른 합계 계산 (일별 데이터의 합계 + 개별 플랫폼별 수익 + 매입비용)
+        'publisher_totals': {
+            'total_revenue': sum(publisher_revenue.values()),
+            'publisher_revenue': sum(publisher_revenue.values()),
+            'publisher_profit': sum(publisher_profit.values()),
+            'publisher_sales': sum(publisher_revenue.values()),
+            'publisher_cost': sum(purchase_data[d]['publisher'] for d in date_list),
+            'other_revenue': sum(int(other_revenue_data[d].get('publisher', 0)) for d in date_list if other_revenue_data and d in other_revenue_data),
+            # 구글/네이버 합계 추가
+            'google_revenue': sum(daily_data.get('publisher_daily_google', {}).values()),
+            'naver_revenue': sum(daily_data.get('publisher_daily_naver', {}).values()),
+        },
+        'partners_totals': {
+            'total_revenue': sum(partners_revenue.values()),
+            'partners_revenue': sum(partners_revenue.values()),
+            'partners_profit': sum(partners_profit.values()),
+            'partners_sales': sum(partners_revenue.values()),
+            'partners_cost': sum(purchase_data[d]['partners'] for d in date_list),
+            'other_revenue': sum(int(other_revenue_data[d].get('partners', 0)) for d in date_list if other_revenue_data and d in other_revenue_data),
+            # 구글/네이버 합계 추가
+            'google_revenue': sum(daily_data.get('partners_daily_google', {}).values()),
+            'naver_revenue': sum(daily_data.get('partners_daily_naver', {}).values()),
+            # 개별 플랫폼별 수익 (section_results에서 가져오기)
+            'cozymamang_revenue': section_results['partners']['totals'].get('cozymamang_revenue', 0),
+            'mediamixer_revenue': section_results['partners']['totals'].get('mediamixer_revenue', 0),
+            'aceplanet_revenue': section_results['partners']['totals'].get('aceplanet_revenue', 0),
+            'teads_revenue': section_results['partners']['totals'].get('teads_revenue', 0),
+            'taboola_revenue': section_results['partners']['totals'].get('taboola_revenue', 0),
+            'coupang_revenue': section_results['partners']['totals'].get('coupang_revenue', 0),
+            'valid_pv': section_results['partners']['totals'].get('valid_pv', 0),
+            'revenue_per_pv': section_results['partners']['totals'].get('revenue_per_pv', 0),
+        },
+        'stamply_totals': {
+            'total_revenue': sum(stamply_revenue.values()),
+            'stamply_revenue': sum(stamply_revenue.values()),
+            'stamply_profit': sum(stamply_profit.values()),
+            'stamply_sales': sum(stamply_revenue.values()),
+            'stamply_cost': sum(purchase_data[d]['stamply'] for d in date_list),
+            'other_revenue': sum(int(other_revenue_data[d].get('stamply', 0)) for d in date_list if other_revenue_data and d in other_revenue_data),
+            'coupang_revenue': section_results['stamply']['totals'].get('coupang_revenue', 0),
+        },
         'stamply_coupang_account_totals': stamply_coupang_account_totals,
+        'total_revenue': total_revenue,           # 총 매출 (퍼블리셔 + 파트너스 + 스탬플리)
+        'total_profit': total_profit,             # 총 순이익 (퍼블리셔 + 파트너스 + 스탬플리)
+        'purchase_data': purchase_data,           # 매입 비용 데이터
         'start_date': start_date,
         'end_date': end_date,
         'publisher_google_naver_data': publisher_google_naver_data,
@@ -755,8 +799,6 @@ def report_view(request):
         if d in data and key in data[d]:
             data[d][key] = Decimal(str(row['earnings'] or 0))
 
-    publisher_revenue = {d: sum(data[d].values()) for d in date_list}
-    
     # 3. 구글/네이버 수익을 Member level별로 분류
     exchange_rates = get_exchange_rates(user, start_date, end_date)
     ad_unit_member_map = get_ad_unit_member_mapping(user)
@@ -793,6 +835,101 @@ def report_view(request):
         user, platform_list, start_date, end_date, publisher_google_naver_data, partners_google_naver_data, other_revenue_data, daily_data
     )
     
+    # main.py와 동일한 방식으로 퍼블리셔 수익 계산
+    publisher_revenue = {}
+    for d in date_list:
+        publisher_revenue[d] = 0  # int로 시작
+        
+        # 퍼블리셔 섹션의 개별 플랫폼 수익 (구글/네이버 제외)
+        if d in section_results['publisher']['data']:
+            for key, value in section_results['publisher']['data'][d].items():
+                platform, alias = key.split('|', 1)
+                # google|publisher, naver|publisher 키도 제외 (중복 방지)
+                if platform not in ['google', 'naver'] and not key.startswith(('google|', 'naver|')):
+                    publisher_revenue[d] += int(value)  # main.py와 동일하게 int 변환
+        
+        # 퍼블리셔의 구글/네이버 수익 추가 (daily_data에서 이미 int 변환됨)
+        if d in daily_data['publisher_daily_google']:
+            publisher_revenue[d] += daily_data['publisher_daily_google'][d]  # 이미 int이므로 변환 불필요
+        if d in daily_data['publisher_daily_naver']:
+            publisher_revenue[d] += daily_data['publisher_daily_naver'][d]  # 이미 int이므로 변환 불필요
+        
+        # 기타수익 추가 (main.py와 동일하게)
+        if other_revenue_data and d in other_revenue_data:
+            if 'publisher' in other_revenue_data[d]:
+                publisher_revenue[d] += int(other_revenue_data[d]['publisher'])
+    
+    # main.py와 동일한 방식으로 파트너스 수익 계산
+    partners_revenue = {}
+    for d in date_list:
+        partners_revenue[d] = 0  # int로 시작
+        
+        # 파트너스 섹션의 개별 플랫폼 수익 (구글/네이버 제외)
+        if d in section_results['partners']['data']:
+            for key, value in section_results['partners']['data'][d].items():
+                platform, alias = key.split('|', 1)
+                # google|partners, naver|partners 키도 제외 (중복 방지)
+                if platform not in ['google', 'naver'] and not key.startswith(('google|', 'naver|')):
+                    partners_revenue[d] += int(value)  # main.py와 동일하게 int 변환
+        
+        # 파트너스의 구글/네이버 수익 추가 (daily_data에서 이미 int 변환됨)
+        if d in daily_data['partners_daily_google']:
+            partners_revenue[d] += daily_data['partners_daily_google'][d]  # 이미 int이므로 변환 불필요
+        if d in daily_data['partners_daily_naver']:
+            partners_revenue[d] += daily_data['partners_daily_naver'][d]  # 이미 int이므로 변환 불필요
+        
+        # 기타수익 추가 (main.py와 동일하게)
+        if other_revenue_data and d in other_revenue_data:
+            if 'partners' in other_revenue_data[d]:
+                partners_revenue[d] += int(other_revenue_data[d]['partners'])
+    
+    # 스탬플리 수익 계산 (main.py와 동일한 방식)
+    stamply_revenue = {}
+    for d in date_list:
+        stamply_revenue[d] = 0  # int로 시작
+        
+        # 스탬플리 섹션의 개별 플랫폼 수익
+        if d in section_results['stamply']['data']:
+            for key, value in section_results['stamply']['data'][d].items():
+                stamply_revenue[d] += int(value)
+        
+        # 기타수익 추가
+        if other_revenue_data and d in other_revenue_data:
+            if 'stamply' in other_revenue_data[d]:
+                stamply_revenue[d] += int(other_revenue_data[d]['stamply'])
+    
+    # 매입 비용 계산 (main.py와 동일한 방식)
+    purchase_data = {}
+    for d in date_list:
+        purchase_data[d] = {
+            'publisher': 0,
+            'partners': 0,
+            'stamply': 0,
+            'total': 0
+        }
+        
+        # 기타수익에서 매입 비용 추출
+        if other_revenue_data and d in other_revenue_data:
+            for section, amount in other_revenue_data[d].items():
+                if section.endswith('_cost'):
+                    if section == 'publisher_cost':
+                        purchase_data[d]['publisher'] += int(amount)
+                    elif section == 'partners_cost':
+                        purchase_data[d]['partners'] += int(amount)
+                    elif section == 'stamply_cost':
+                        purchase_data[d]['stamply'] += int(amount)
+                    
+                    purchase_data[d]['total'] += int(amount)
+    
+    # 순이익 계산 (매출 - 매입비용)
+    publisher_profit = {d: publisher_revenue[d] - purchase_data[d]['publisher'] for d in date_list}
+    partners_profit = {d: partners_revenue[d] - purchase_data[d]['partners'] for d in date_list}
+    stamply_profit = {d: stamply_revenue[d] - purchase_data[d]['stamply'] for d in date_list}
+    
+    # 총합 계산 (퍼블리셔 + 파트너스 + 스탬플리)
+    total_revenue = {d: publisher_revenue[d] + partners_revenue[d] + stamply_revenue[d] for d in date_list}
+    total_profit = {d: publisher_profit[d] + partners_profit[d] + stamply_profit[d] for d in date_list}
+    
     # 10. 쿠팡 계정별 합계 계산
     stamply_coupang_account_totals = calculate_coupang_account_totals(
         daily_data['stamply_daily_coupang_by_account'], date_list, section_results['stamply']['platforms']
@@ -804,7 +941,10 @@ def report_view(request):
     context = build_report_context(
         date_list, platform_headers, section_results, daily_data, 
         stamply_coupang_account_totals, start_date, end_date,
-        publisher_google_naver_data, partners_google_naver_data, data, publisher_revenue
+        publisher_google_naver_data, partners_google_naver_data, data, 
+        publisher_revenue, partners_revenue, stamply_revenue,
+        publisher_profit, partners_profit, stamply_profit,
+        total_revenue, total_profit, purchase_data, other_revenue_data
     )
     
     context.update({

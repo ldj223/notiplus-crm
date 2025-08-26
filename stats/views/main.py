@@ -68,6 +68,9 @@ def main_view(request):
     exchange_rates = get_exchange_rates(request.user, start_date, end_date)
     ad_unit_member_map = get_ad_unit_member_mapping(request.user)
     
+    # 날짜 리스트 생성
+    date_list = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
+    
     # 3. 구글/네이버 수익을 Member level별로 분류
     publisher_google_naver_data, partners_google_naver_data = calculate_platform_revenue_by_member_level(
         request.user, start_date, end_date, ad_unit_member_map, exchange_rates
@@ -81,15 +84,22 @@ def main_view(request):
     # 5. 기타수익 데이터 조회
     other_revenue_data = get_other_revenue_data(request.user, start_date, end_date)
     
-    # 6. 모든 섹션 처리
-    section_results = process_all_sections(
-        request.user, platform_list, start_date, end_date, 
-        publisher_google_naver_data, partners_google_naver_data, other_revenue_data
+    # 6. 일일 개별 플랫폼 수익 계산 (reports.py와 동일한 방식)
+    from stats.views.reports import calculate_daily_platform_revenue, get_naver_powerlink_detail_data
+    naver_powerlink_detail = get_naver_powerlink_detail_data(request.user, start_date, end_date)
+    daily_data = calculate_daily_platform_revenue(
+        date_list, publisher_google_naver_data, partners_google_naver_data, 
+        {}, naver_powerlink_detail, request.user, platform_list
     )
     
-    # 7. 일별 매출 데이터 구성 (reports.py와 동일한 방식)
+    # 7. 모든 섹션 처리 (daily_data 전달)
+    section_results = process_all_sections(
+        request.user, platform_list, start_date, end_date, 
+        publisher_google_naver_data, partners_google_naver_data, other_revenue_data, daily_data
+    )
+    
+    # 8. 일별 매출 데이터 구성 (reports.py와 동일한 방식)
     sales_data = {}
-    date_list = [start_date + timedelta(days=i) for i in range((end_date - start_date).days + 1)]
     
     for current_date in date_list:
         sales_data[current_date] = {
@@ -99,15 +109,35 @@ def main_view(request):
             'total': 0
         }
         
-        # 퍼블리셔 수익 (구글/네이버 + 기타수익)
-        if current_date in publisher_google_naver_data:
-            sales_data[current_date]['publisher'] += int(sum(publisher_google_naver_data[current_date].values()))
+        # 퍼블리셔 수익 (개별 플랫폼 + 구글/네이버 + 기타수익)
+        if current_date in section_results['publisher']['data']:
+            # 개별 플랫폼 수익 (구글/네이버 제외)
+            for key, value in section_results['publisher']['data'][current_date].items():
+                platform, alias = key.split('|', 1)
+                if platform not in ['google', 'naver']:
+                    sales_data[current_date]['publisher'] += int(value)
+            
+            # 구글/네이버 수익 추가
+            if current_date in daily_data['publisher_daily_google']:
+                sales_data[current_date]['publisher'] += int(daily_data['publisher_daily_google'][current_date])
+            if current_date in daily_data['publisher_daily_naver']:
+                sales_data[current_date]['publisher'] += int(daily_data['publisher_daily_naver'][current_date])
         
-        # 파트너스 수익
-        if current_date in partners_google_naver_data:
-            sales_data[current_date]['partners'] += int(sum(partners_google_naver_data[current_date].values()))
+        # 파트너스 수익 (개별 플랫폼 + 구글/네이버 + 기타수익)
+        if current_date in section_results['partners']['data']:
+            # 개별 플랫폼 수익 (구글/네이버 제외)
+            for key, value in section_results['partners']['data'][current_date].items():
+                platform, alias = key.split('|', 1)
+                if platform not in ['google', 'naver']:
+                    sales_data[current_date]['partners'] += int(value)
+            
+            # 구글/네이버 수익 추가
+            if current_date in daily_data['partners_daily_google']:
+                sales_data[current_date]['partners'] += int(daily_data['partners_daily_google'][current_date])
+            if current_date in daily_data['partners_daily_naver']:
+                sales_data[current_date]['partners'] += int(daily_data['partners_daily_naver'][current_date])
         
-        # 스탬플리 수익
+        # 스탬플리 수익 (section_results에서 가져오기)
         if current_date in section_results['stamply']['data']:
             sales_data[current_date]['stamply'] += int(sum(section_results['stamply']['data'][current_date].values()))
         
@@ -255,36 +285,81 @@ def main_view(request):
     # 전월 기타수익 데이터 조회
     prev_other_revenue_data = get_other_revenue_data(request.user, prev_start_date, prev_end_date)
     
+    # 전월 일일 개별 플랫폼 수익 계산
+    prev_naver_powerlink_detail = get_naver_powerlink_detail_data(request.user, prev_start_date, prev_end_date)
+    prev_daily_data = calculate_daily_platform_revenue(
+        [prev_start_date + timedelta(days=i) for i in range(period_days)], 
+        prev_publisher_google_naver_data, prev_partners_google_naver_data, 
+        {}, prev_naver_powerlink_detail, request.user, platform_list
+    )
+    
+    # 전월 모든 섹션 처리
+    prev_section_results = process_all_sections(
+        request.user, platform_list, prev_start_date, prev_end_date, 
+        prev_publisher_google_naver_data, prev_partners_google_naver_data, prev_other_revenue_data, prev_daily_data
+    )
+    
+    # 전월 네이버 파워링크 수익 계산
+    prev_publisher_google_naver_data, prev_partners_google_naver_data = calculate_naver_powerlink_revenue(
+        request.user, prev_start_date, prev_end_date, prev_publisher_google_naver_data, prev_partners_google_naver_data
+    )
+    
+    # 전월 기타수익 데이터 조회
+    prev_other_revenue_data = get_other_revenue_data(request.user, prev_start_date, prev_end_date)
+    
     # 전월 모든 섹션 처리
     prev_section_results = process_all_sections(
         request.user, platform_list, prev_start_date, prev_end_date, 
         prev_publisher_google_naver_data, prev_partners_google_naver_data, prev_other_revenue_data
     )
     
-    # 전월 매출 합계 계산
+    # 전월 매출 합계 계산 (reports.py와 동일한 방식)
     prev_sales_total = {'publisher': 0, 'partners': 0, 'stamply': 0, 'total': 0}
     
-    # 전월 퍼블리셔 수익
-    for date_data in prev_publisher_google_naver_data.values():
-        prev_sales_total['publisher'] += int(sum(date_data.values()))
-    
-    # 전월 파트너스 수익
-    for date_data in prev_partners_google_naver_data.values():
-        prev_sales_total['partners'] += int(sum(date_data.values()))
-    
-    # 전월 스탬플리 수익
-    for date_data in prev_section_results['stamply']['data'].values():
-        prev_sales_total['stamply'] += int(sum(date_data.values()))
-    
-    # 전월 기타수익 추가
-    for date_data in prev_other_revenue_data.values():
-        for section, amount in date_data.items():
-            if section == 'publisher':
-                prev_sales_total['publisher'] += int(amount)
-            elif section == 'partners':
-                prev_sales_total['partners'] += int(amount)
-            elif section == 'stamply':
-                prev_sales_total['stamply'] += int(amount)
+    # 전월 일별 매출 데이터 계산
+    prev_date_list = [prev_start_date + timedelta(days=i) for i in range(period_days)]
+    for current_date in prev_date_list:
+        # 퍼블리셔 수익 (개별 플랫폼 + 구글/네이버 + 기타수익)
+        if current_date in prev_section_results['publisher']['data']:
+            # 개별 플랫폼 수익 (구글/네이버 제외)
+            for key, value in prev_section_results['publisher']['data'][current_date].items():
+                platform, alias = key.split('|', 1)
+                if platform not in ['google', 'naver']:
+                    prev_sales_total['publisher'] += int(value)
+            
+            # 구글/네이버 수익 추가
+            if current_date in prev_daily_data['publisher_daily_google']:
+                prev_sales_total['publisher'] += int(prev_daily_data['publisher_daily_google'][current_date])
+            if current_date in prev_daily_data['publisher_daily_naver']:
+                prev_sales_total['publisher'] += int(prev_daily_data['publisher_daily_naver'][current_date])
+        
+        # 파트너스 수익 (개별 플랫폼 + 구글/네이버 + 기타수익)
+        if current_date in prev_section_results['partners']['data']:
+            # 개별 플랫폼 수익 (구글/네이버 제외)
+            for key, value in prev_section_results['partners']['data'][current_date].items():
+                platform, alias = key.split('|', 1)
+                if platform not in ['google', 'naver']:
+                    prev_sales_total['partners'] += int(value)
+            
+            # 구글/네이버 수익 추가
+            if current_date in prev_daily_data['partners_daily_google']:
+                prev_sales_total['partners'] += int(prev_daily_data['partners_daily_google'][current_date])
+            if current_date in prev_daily_data['partners_daily_naver']:
+                prev_sales_total['partners'] += int(prev_daily_data['partners_daily_naver'][current_date])
+        
+        # 스탬플리 수익
+        if current_date in prev_section_results['stamply']['data']:
+            prev_sales_total['stamply'] += int(sum(prev_section_results['stamply']['data'][current_date].values()))
+        
+        # 기타수익 추가
+        if current_date in prev_other_revenue_data:
+            for section, amount in prev_other_revenue_data[current_date].items():
+                if section == 'publisher':
+                    prev_sales_total['publisher'] += int(amount)
+                elif section == 'partners':
+                    prev_sales_total['partners'] += int(amount)
+                elif section == 'stamply':
+                    prev_sales_total['stamply'] += int(amount)
     
     # 전월 총합 계산
     prev_sales_total['total'] = (

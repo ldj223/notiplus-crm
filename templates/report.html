@@ -200,7 +200,7 @@
               {% endfor %}
               <tr class="total-row">
                 <td>합계</td>
-                <td class="text-primary">{{ publisher_totals.publisher_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-primary">{{ publisher_totals.publisher_profit|floatformat:0|intcomma }}</td>
                 <td class="text-info">{{ publisher_totals.publisher_sales|floatformat:0|intcomma }}</td>
                 <td>{{ publisher_totals.google_revenue|floatformat:0|intcomma }}</td>
                 <td>{{ publisher_totals.naver_revenue|floatformat:0|intcomma }}</td>
@@ -242,6 +242,7 @@
                 <th>에이스플래닛</th>
                 <th>타불라</th>
                 <th>티즈</th>
+                <th>쿠팡</th>
                 <th>기타수익</th>
                 <th>파트너스 매입비용</th>
                 <th>파트너스 매입비용(유효PV)</th>
@@ -274,6 +275,7 @@
                 <td>{{ partners_daily_aceplanet|get_item:d|floatformat:0|intcomma }}</td>
                 <td>{{ partners_daily_taboola|get_item:d|floatformat:0|intcomma }}</td>
                 <td>{{ partners_daily_teads|get_item:d|floatformat:0|intcomma }}</td>
+                <td>{{ partners_daily_coupang|get_item:d|floatformat:0|intcomma }}</td>
                 <td>
                   <input type="text" 
                          class="form-control form-control-sm other-revenue-input formatted-input" 
@@ -288,12 +290,12 @@
                 <td class="text-danger">
                   {{ other_revenue_data|get_item:d|get_item:'partners_cost'|default:'0'|floatformat:0|intcomma }}
                 </td>
-                <td class="text-danger">{{ partners_valid_pv_data.daily|get_item:d|get_item:'valid_pageview'|default:'0'|multiply:5.0|floatformat:0|intcomma }}</td>
+                <td class="text-danger">{{ partners_valid_pv_data.daily|get_item:d|get_item:'valid_pageview'|default:'0'|floatformat:0|intcomma }}</td>
               </tr>
               {% endfor %}
               <tr class="total-row">
                 <td>합계</td>
-                <td class="text-primary">{{ partners_totals.partners_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-primary">{{ partners_totals.partners_profit|floatformat:0|intcomma }}</td>
                 <td class="text-info">{{ partners_totals.partners_sales|floatformat:0|intcomma }}</td>
                 <td>{{ partners_valid_pv_data.totals.valid_pageview|floatformat:0|intcomma }}</td>
                 <td>{{ partners_valid_pv_data.totals.revenue_per_pv|floatformat:0|intcomma }}</td>
@@ -304,9 +306,10 @@
                 <td>{{ partners_totals.aceplanet_revenue|floatformat:0|intcomma }}</td>
                 <td>{{ partners_totals.taboola_revenue|floatformat:0|intcomma }}</td>
                 <td>{{ partners_totals.teads_revenue|floatformat:0|intcomma }}</td>
+                <td>{{ partners_totals.coupang_revenue|floatformat:0|intcomma }}</td>
                 <td id="partners-other-revenue-total">{{ partners_totals.other_revenue|floatformat:0|intcomma }}</td>
                 <td class="text-danger" id="partners-cost-total">{{ partners_totals.partners_cost|floatformat:0|intcomma }}</td>
-                <td class="text-danger">{{ partners_valid_pv_data.totals.valid_pageview|multiply:5.0|floatformat:0|intcomma }}</td>
+                <td class="text-danger">{{ partners_valid_pv_data.totals.valid_pageview|floatformat:0|intcomma }}</td>
               </tr>
             </tbody>
           </table>
@@ -378,7 +381,7 @@
               {% endfor %}
               <tr class="total-row">
                 <td>합계</td>
-                <td class="text-primary">{{ stamply_totals.stamply_revenue|floatformat:0|intcomma }}</td>
+                <td class="text-primary">{{ stamply_totals.stamply_profit|floatformat:0|intcomma }}</td>
                 <td class="text-info">{{ stamply_totals.stamply_sales|floatformat:0|intcomma }}</td>
                 {% for p, a, display_name, key in stamply_platform_headers %}
                   <td>{{ stamply_coupang_account_totals|get_item:a|floatformat:0|intcomma }}</td>

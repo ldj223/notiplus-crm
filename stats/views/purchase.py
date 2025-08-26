@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 def calculate_purchase_cost_by_date_range(user, start_date, end_date):
     """
-    지정된 날짜 범위의 매입비용을 계산하여 반환 (세부 데이터와 동일한 방식)
+    지정된 날짜 범위의 매입비용을 계산하여 반환
     Returns: {
         'publisher_cost': {date: cost, ...},
         'partners_cost': {date: cost, ...}
@@ -128,7 +128,7 @@ def calculate_purchase_cost_by_date_range(user, start_date, end_date):
     )
     member_powerlink_data = {(stat['request_key'], stat['sdate']): {'powerlink_count': stat['powerlink_count'] or 0, 'click_count': stat['click_count'] or 0} for stat in member_powerlink_stats}
     
-    # 7. 각 그룹별 일별 매입비용 계산 (세부 데이터와 동일한 방식)
+    # 7. 각 그룹별 일별 매입비용 계산
     for group in all_groups:
         member_level = group.member.level if group.member else 60
         default_price = group.default_unit_price
@@ -140,12 +140,12 @@ def calculate_purchase_cost_by_date_range(user, start_date, end_date):
         for current_date in date_list:
             ad_revenue = Decimal('0')
             
-            # 1. 애드센스/애드매니저 광고수익 합산 (세부 데이터와 동일한 방식)
+            # 1. 애드센스/애드매니저 광고수익 합산
             for ad_unit in ad_units:
                 stat_key = (current_date, ad_unit.ad_unit_id)
                 ad_revenue += Decimal(str(stats_map.get(stat_key, 0)))
             
-            # 2. 파워링크(애드포스트) 수익 분배 (세부 데이터와 동일한 방식)
+            # 2. 파워링크(애드포스트) 수익 분배
             adpost_info = adpost_data.get(current_date, {'earnings': 0, 'clicks': 0})
             total_powerlink_count = total_powerlink_data.get(current_date, 0)
             member_data = member_powerlink_data.get((group.member.request_key, current_date), {'powerlink_count': 0, 'click_count': 0})
@@ -162,7 +162,7 @@ def calculate_purchase_cost_by_date_range(user, start_date, end_date):
             
             ad_revenue += powerlink_revenue
             
-            # 3. 매입비용 계산 (세부 데이터와 동일한 방식)
+            # 3. 매입비용 계산
             rs_rate = default_price or 0
             rs_type = default_type or 'percent'
             purchase_cost = Decimal('0')
@@ -173,11 +173,24 @@ def calculate_purchase_cost_by_date_range(user, start_date, end_date):
                 # RS단가가 percent가 아닌 경우 tbTotalStat의 click_count에 RS단가를 곱함
                 purchase_cost = Decimal(str(click_count)) * Decimal(str(rs_rate))
             
-            # 4. level에 따라 매입비용 분류 (세부 데이터와 동일한 반올림 방식)
+            # 4. level에 따라 매입비용 분류
             if member_level == 50:  # 퍼블리셔
                 result['publisher_cost'][current_date] += int(purchase_cost)
             elif member_level in [60, 61, 65]:  # 파트너스
-                result['partners_cost'][current_date] += int(purchase_cost)
+                # 파트너스는 기존 방식으로 계산하지 않음 (유효PV * 5로 계산)
+                pass
+    
+    # 8. 파트너스 비용을 유효PV * 5로 계산
+    # 순환 import 방지를 위해 함수 내부에서 import
+    import importlib
+    reports_module = importlib.import_module('stats.views.reports')
+    partners_valid_pv_data = reports_module.get_partners_valid_pv_data(user, start_date, end_date)
+    
+    for current_date in date_list:
+        if current_date in partners_valid_pv_data['daily']:
+            valid_pv = partners_valid_pv_data['daily'][current_date]['valid_pageview']
+            # 파트너스 비용 = 유효PV * 5
+            result['partners_cost'][current_date] = int(valid_pv * 5)
     
     return result
 
