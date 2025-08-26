@@ -580,12 +580,12 @@ def calculate_daily_platform_revenue(date_list, publisher_google_naver_data, par
                 )
                 for cred in coupang_creds:
                     key = f"coupang|{cred.alias}"
-                    platform_revenues['coupang'] += data.get(key, Decimal('0'))
+                    platform_revenues['coupang'] += round(float(data.get(key, Decimal('0'))))
             else:
                 # 다른 플랫폼들은 기본 데이터에서 가져오기
                 for alias in [a for p, a in platform_list if p == platform]:
                     key = f"{platform}|{alias}"
-                    platform_revenues[platform] += data.get(key, Decimal('0'))
+                    platform_revenues[platform] += round(float(data.get(key, Decimal('0'))))
         
         daily_data['partners_daily_cozymamang'][d] = platform_revenues['cozymamang']
         daily_data['partners_daily_mediamixer'][d] = platform_revenues['mediamixer']
@@ -846,7 +846,7 @@ def report_view(request):
                 platform, alias = key.split('|', 1)
                 # google|publisher, naver|publisher 키도 제외 (중복 방지)
                 if platform not in ['google', 'naver'] and not key.startswith(('google|', 'naver|')):
-                    publisher_revenue[d] += int(value)  # main.py와 동일하게 int 변환
+                    publisher_revenue[d] += round(float(value))  # 반올림 적용
         
         # 퍼블리셔의 구글/네이버 수익 추가 (daily_data에서 이미 int 변환됨)
         if d in daily_data['publisher_daily_google']:
@@ -870,7 +870,7 @@ def report_view(request):
                 platform, alias = key.split('|', 1)
                 # google|partners, naver|partners 키도 제외 (중복 방지)
                 if platform not in ['google', 'naver'] and not key.startswith(('google|', 'naver|')):
-                    partners_revenue[d] += int(value)  # main.py와 동일하게 int 변환
+                    partners_revenue[d] += round(float(value))  # 반올림 적용
         
         # 파트너스의 구글/네이버 수익 추가 (daily_data에서 이미 int 변환됨)
         if d in daily_data['partners_daily_google']:
@@ -891,7 +891,7 @@ def report_view(request):
         # 스탬플리 섹션의 개별 플랫폼 수익
         if d in section_results['stamply']['data']:
             for key, value in section_results['stamply']['data'][d].items():
-                stamply_revenue[d] += int(value)
+                stamply_revenue[d] += round(float(value))  # 반올림 적용
         
         # 기타수익 추가
         if other_revenue_data and d in other_revenue_data:

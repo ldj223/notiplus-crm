@@ -115,7 +115,7 @@ def main_view(request):
             for key, value in section_results['publisher']['data'][current_date].items():
                 platform, alias = key.split('|', 1)
                 if platform not in ['google', 'naver']:
-                    sales_data[current_date]['publisher'] += int(value)
+                    sales_data[current_date]['publisher'] += round(float(value))  # daily_data에서 이미 int로 저장됨
             
             # 구글/네이버 수익 추가
             if current_date in daily_data['publisher_daily_google']:
@@ -129,7 +129,7 @@ def main_view(request):
             for key, value in section_results['partners']['data'][current_date].items():
                 platform, alias = key.split('|', 1)
                 if platform not in ['google', 'naver']:
-                    sales_data[current_date]['partners'] += int(value)
+                    sales_data[current_date]['partners'] += round(float(value))  # daily_data에서 이미 int로 저장됨
             
             # 구글/네이버 수익 추가
             if current_date in daily_data['partners_daily_google']:
